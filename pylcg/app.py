@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 import tkinter as tk
 from tkinter import ttk
 
-import pylcg.settings as settings
+import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
 from pylcg.util import jd_now
@@ -27,7 +27,10 @@ class ApplicationPylcg(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
 
-        # self.iconbitmap(self, default='app_icon.ico')  # must be an icon file
+        self.iconbitmap(self, default='pylcg-icon16.ico')  # must be an icon file
+        # or:
+        # imgicon = PhotoImage(file=os.path.join(path, 'myicon.gif'))
+        # root.tk.call('wm', 'iconphoto', root._w, imgicon)
         tk.Tk.wm_title(self, 'pylcg  -- Light Curve Generator in python 3')
         self.resizable(True, True)
 
@@ -41,11 +44,12 @@ class ApplicationPylcg(tk.Tk):
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label='Exit', command=quit)
         menubar.add_cascade(label='File', menu=file_menu)
-        settings_menu = tk.Menu(menubar, tearoff=0)
-        settings_menu.add_command(label='Reload User Settings', command=settings.UserSettings.reload_all)
-        settings_menu.add_command(label='Set all Settings to Defaults',
-                                  command=settings.UserSettings.set_all_to_defaults)
-        menubar.add_cascade(label='Settings', menu=settings_menu)
+        preferences_menu = tk.Menu(menubar, tearoff=0)
+        preferences_menu.add_command(label='Reload User Preferences',
+                                     command=prefs.Preferences.load_ini_file)
+        preferences_menu.add_command(label='Set all Preferences to Defaults',
+                                     command=prefs.Preferences.reset_current_to_default)
+        menubar.add_cascade(label='Preferences', menu=preferences_menu)
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label='Browse pylcg repo', command=web.browse_repo)
         help_menu.add_command(label='About', command=self.about_popup)
@@ -194,9 +198,9 @@ class ApplicationPylcg(tk.Tk):
         self.band_others_checkbutton.grid(row=2, column=1, sticky='w')
         self.band_all_checkbutton.grid(row=4, column=1, sticky='w')
 
-        button_moresettings = ttk.Button(self.control_subframe1, text='More settings...',
-                                         command=self._moresettings)
-        button_moresettings.grid(pady=5, sticky='ew')
+        button_preferences = ttk.Button(self.control_subframe1, text='Preferences...',
+                                        command=self._preferences_window)
+        button_preferences.grid(pady=5, sticky='ew')
         button_listobservers = ttk.Button(self.control_subframe1, text='List Observers',
                                           command=self._listobservers)
         button_listobservers.grid(pady=5, sticky='ew')
@@ -250,11 +254,11 @@ class ApplicationPylcg(tk.Tk):
         self.jdend_entry.delete(0, tk.END)
         self.jdend_entry.insert(0, '{:20.6f}'.format(jd_now()).strip())
 
-    def _moresettings(self):
+    def _preferences_window(self):
         pass
         # self.jdstart_entry.delete(0, tk.END)
-        # self.jdstart_entry.insert(0, '_moresettings(): ' + str(self.band_u.get()))
-        print('_moresettings(): ', str(self.bands_gui['U'].get()))
+        # self.jdstart_entry.insert(0, '_preferences_window(): ' + str(self.band_u.get()))
+        print('_preferences_window(): ', str(self.bands_gui['U'].get()))
 
     def _listobservers(self):
         pass

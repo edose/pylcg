@@ -1,12 +1,26 @@
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
-import pandas as pd
+import urllib
 import webbrowser
+
+import pandas as pd
 
 import pylcg.util as util
 
-VSX_DELIMITERS = ['$', '`', '^', '%']  # NB: ',' as delim will fail as all obsName values have comma.
+VSX_DELIMITERS = ['$', '`', '^', '%']  # NB: delim of ',' will fail as obsName values already have a comma.
 REPO_URL = 'https://www.github.com/edose/pylcg'
+
+
+class Error(Exception):
+    pass
+
+
+class WebAddressNotAvailableError(Error):
+    pass
+
+
+class NoDataError(Error):
+    pass
 
 
 def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=500):
@@ -24,46 +38,46 @@ def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=
         (empty DataFrame if there was some problem).
     """
     url_header = 'https://www.aavso.org/vsx/index.php?view=api.delim'
-
     parm_ident = '&ident=' + util.make_safe_star_id(star_id)
-
     if jd_end is None:
         jd_end = util.jd_now()
     parm_tojd = '&tojd=' + '{:20.5f}'.format(jd_end).strip()
-
     if jd_start is None:
         jd_start = jd_end - num_days
     parm_fromjd = '&fromjd=' + '{:20.5f}'.format(jd_start).strip()
 
     dataframe = None  # default if all delimiters fail
-    for delimiter in VSX_DELIMITERS:
+    df_is_ok = False  # "
+    for delimiter in VSX_DELIMITERS:  # we try all limiters until one succeeds or (error) all have failed.
         parm_delimiter = '&delimiter=' + delimiter
         url = url_header + parm_ident + parm_tojd + parm_fromjd + parm_delimiter
         try:
             dataframe = pd.read_csv(url, sep=delimiter)
-        except:
-            print('...delimiter ' + delimiter + ' gives exception')
-            continue
-        if dataframe_appears_ok(dataframe):
-            break
-
-    if not dataframe_appears_ok(dataframe):
-        print('>>>>> all delimiters failed. Stopping right here.')
+        except urllib.error.URLError:
+            raise WebAddressNotAvailableError(url_header)
+        if dataframe_has_data(dataframe):
+            if dataframe_data_appear_valid(dataframe):
+                df_is_ok = True
+                break
+    if not df_is_ok:
+        raise NoDataError(star_id)
     return dataframe
 
 
-def dataframe_appears_ok(dataframe):
+def dataframe_has_data(dataframe):
     if dataframe is None:
-        print('dataframe could not be constructed.')
         return False
-    if (dataframe.shape[0] == 0) or (dataframe.shape[1] < 10):
-        print('dataframe appears corrupted (size).')
+    if dataframe.shape[0] == 0:
+        return False
+    return True
+
+
+def dataframe_data_appear_valid(dataframe):
+    if dataframe.shape[1] < 20:
         return False
     if 'uncert' not in dataframe.columns:
-        print('dataframe appears corrupted (uncertainties missing).')
         return False
     if not dataframe['uncert'].dtype.name == 'float64':
-        print('dataframe appears corrupted (uncertainties not numeric).')
         return False
     return True
 
