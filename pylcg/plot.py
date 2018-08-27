@@ -1,42 +1,54 @@
 import matplotlib
 matplotlib.use('TkAgg')  # this must immed follow 'import matplotlib' (even if IDE complains).
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-from matplotlib.figure import Figure
+# import matplotlib.pyplot as plt
+# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+# from matplotlib.figure import Figure
 import tkinter as tk
 from tkinter import ttk
 from math import isnan
 
 import pandas as pd
 
-import pylcg.web as web
 import pylcg.util as util
 
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
-COLOR_BY_BAND = {'V': 'xkcd:kelley green', 'R': 'xkcd:ruby', 'I': 'xkcd:violet red',
-                 'B': 'xkcd:vibrant blue', 'Vis.': 'xkcd:almost black'}
-MARKER_BY_BAND = {'V': 'o', 'R': 'o', 'I': 'o', 'B': 'o', 'Vis.': 'v'}
-FIGURE_HEIGHT_INCHES = 8
-FIGURE_WIDTH_INCHES = 12
+BAND_DEFAULT_COLORS = {'V': 'xkcd:kelley green',
+                       'R': 'xkcd:ruby',
+                       'I': 'xkcd:violet red',
+                       'B': 'xkcd:vibrant blue',
+                       'Vis.': 'xkcd:almost black'}
+BAND_DEFAULT_COLOR_DEFAULT = 'gray'
+BAND_MARKERS = {'V': 'o', 'R': 'o', 'I': 'o', 'B': 'o', 'Vis.': 'v'}
+BAND_MARKERS_DEFAULT = 'x'
+
 LARGE_FONT = ("Verdana", 12)
 NORM_FONT = ("Verdana", 10)
 SMALL_FONT = ("Verdana", 8)
 PLOT_TITLE_FONT = ('consolas', 20)
+PLOT_TITLE_COLOR = 'gray'
+GRID_COLOR = 'lightgray'
 
 
-def redraw_plot(canvas, df, star_id, bands_to_draw, jd_start=None, jd_end=None, num_days=None):
+
+
+def redraw_plot(canvas, df, star_id, bands_to_plot,
+                show_errorbars=True, show_grid=True,
+                jd_start=None, jd_end=None, num_days=None):
     """  Clear and redraw plot area only. Do not touch other areas of main page.
     :param canvas: canvas containing LCG plot [matplotlib FigureCanvasTkAgg object].
     :param df: data to plot [pandas DataFrame].
     :param star_id: star ID to plot [string].
-    :param bands_to_draw: AAVSO codes of bands to draw, e.g., ['V', 'Vis.'] [list of strings].
+    :param bands_to_plot: AAVSO codes of bands to draw, e.g., ['V', 'Vis.'] [list of strings].
+    :param show_errorbars: True to plot errorbars with datapoints, else False [boolean].
+    :param show_grid: True to plot grid behind plot, else False [boolean].
     :param jd_start:
     :param jd_end:
     :param num_days:
     :return: True if successful, else False (prob when there are no points to plot) [boolean].
     """
+
     if len(df) <= 0:
         message_popup('No observations found for ' + star_id + ' in this date range.')
         return False
@@ -51,21 +63,24 @@ def redraw_plot(canvas, df, star_id, bands_to_draw, jd_start=None, jd_end=None, 
     # Construct plot elements:
     ax = canvas.figure.axes[0]
     ax.clear()
-    ax.grid(True, color='lightgray', zorder=-1000)
-    ax.set_title(star_id.upper(), color='gray', fontname='Consolas', fontsize=16, weight='bold')
+    ax.set_title(star_id.upper(), color=PLOT_TITLE_COLOR, fontname='Consolas', fontsize=16, weight='bold')
     ax.set_xlabel('JD')
     ax.set_ylabel('Magnitude')
-    is_to_draw = [b in bands_to_draw for b in df['band']]
-    ax.errorbar(x=x[is_to_draw], y=y[is_to_draw], xerr=0.0, yerr=uncert[is_to_draw], fmt='none',
-                ecolor='gray', capsize=2, alpha=1, zorder=+900)
+    if show_grid:
+        ax.grid(True, color=GRID_COLOR, zorder=-1000)  # zorder->behind everything else.
+    if show_errorbars:
+        is_to_be_drawn = [b in bands_to_plot for b in df['band']]
+        ax.errorbar(x=x[is_to_be_drawn], y=y[is_to_be_drawn], xerr=0.0, yerr=uncert[is_to_be_drawn],
+                    fmt='none', ecolor='gray', capsize=2, alpha=1,
+                    zorder=+900)  # zorder->behind datapoint markers, above grid.
     legend_labels = []
-    for band in bands_to_draw:
-        band_color = COLOR_BY_BAND[band]
-        band_marker = MARKER_BY_BAND[band]
+    for band in bands_to_plot:
+        band_color = BAND_DEFAULT_COLORS.get(band, BAND_DEFAULT_COLOR_DEFAULT)
+        band_marker = BAND_MARKERS.get(band, BAND_MARKERS_DEFAULT)
         is_band = [b == band for b in df['band']]
         if sum(is_band) >= 1:
             ax.scatter(x=x[is_band], y=y[is_band], color=band_color, marker=band_marker,
-                       s=25, alpha=0.9, zorder=+1000)
+                       s=25, alpha=0.9, zorder=+1000)  # zorder->on top of everything.
             legend_labels.append(band)
     if jd_end is None:
         x_high = util.jd_now()
@@ -76,6 +91,7 @@ def redraw_plot(canvas, df, star_id, bands_to_draw, jd_start=None, jd_end=None, 
     else:
         x_low = jd_start
     ax.set_xlim(x_low, x_high)
+    ax.get_xaxis().get_major_formatter().set_useOffset(False)  # possibly improve this later.
     # To follow convention of brighter (=lesser value) manitudes to be plotted toward plot top.
     # The next lines are a kludge, due to ax.invert_yaxis() repeatedly inverting on successive calls.
     y_low, y_high = ax.set_ylim()
@@ -83,7 +99,6 @@ def redraw_plot(canvas, df, star_id, bands_to_draw, jd_start=None, jd_end=None, 
     ax.legend(labels=legend_labels, scatterpoints=1,
               bbox_to_anchor=(0, 1.02, 1, .102), loc=3, ncol=2, borderaxespad=0)
     canvas.draw()
-
 
 def quit_and_destroy(window_object):
     """ Both quit() and destroy() are required, at least in Windows, to close a popup window gracefully.
@@ -93,7 +108,6 @@ def quit_and_destroy(window_object):
     """
     window_object.quit()
     window_object.destroy()
-
 
 def message_popup(message):
     """  Draws popup window displaying message to user.
@@ -108,10 +122,6 @@ def message_popup(message):
     button_ok.pack()
     this_window.mainloop()
 
-
-
-
-
 # def lcg(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=500):
 #     """  Make and display a plot resembling AAVSO's hallowed Light Curve Generator V1.
 #          Gets data from AAVSO VSX, extracts the data needed, and plots.
@@ -122,16 +132,16 @@ def message_popup(message):
 #     :param num_days: set earliest Julian date to jd_end - num_days [int/float].
 #     :return: no return value; this function makes and displays a plot similar to LCG V1.
 #     """
-#     df = web.get_vsx_obs(star_id, max_num_obs, jd_start, jd_end, num_days)
-#     if len(df) <= 0:
+#     df_obs_data = web.get_vsx_obs(star_id, max_num_obs, jd_start, jd_end, num_days)
+#     if len(df_obs_data) <= 0:
 #         print('>>>>> No observations found for ' + star_id + ' in this date range.')
 #         return
 #
 #     # Build plot data:
-#     x = df['JD']
-#     y = df['mag']
-#     uncert = pd.Series([max(0.0, float(u)) for u in df['uncert']])
-#     colors = [COLOR_BY_BAND[band] for band in df['band']]
+#     x = df_obs_data['JD']
+#     y = df_obs_data['mag']
+#     uncert = pd.Series([max(0.0, float(u)) for u in df_obs_data['uncert']])
+#     colors = [COLOR_BY_BAND[band] for band in df_obs_data['band']]
 #
 #     # Construct plot:
 #     fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
@@ -156,8 +166,10 @@ def message_popup(message):
 #
 # def go(filename=r'./data/AAVSOreport-20180813.txt',
 #        max_num_obs=None, jd_start=None, jd_end=None, num_days=500):
-#     """  Sequentially make LCG plots for each target star reported in an app_entry_upload file.
-#          Typical use: in-context lightcurve review of each target star in recently uploaded submission file.
+#     """  Sequentially make LCG plots for each target star reported
+#              in an app_entry_upload file.
+#          Typical use: in-context lightcurve review of each target star
+#              in recently uploaded submission file.
 #     :param filename: full path of uploaded submission file.
 #     :param max_num_obs: maximum number of points to plot [int] -- NOT YET IMPLEMENTED.
 #     :param jd_start: earliest Julian date to plot [float].
@@ -183,18 +195,19 @@ def message_popup(message):
 #     canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 #
 #     for i, star_id in enumerate(star_ids):
-#         root.wm_title(star_id.upper() + ":     app_entry_manual plot # " + str(i + 1) + ' of ' + str(len(star_ids)))
+#         root.wm_title(star_id.upper() + ":     app_entry_manual plot # " +
+#             str(i + 1) + ' of ' + str(len(star_ids)))
 #
-#         df = web.get_vsx_obs(star_id, max_num_obs, jd_start, jd_end, num_days)
-#         if len(df) <= 0:
+#         df_obs_data = web.get_vsx_obs(star_id, max_num_obs, jd_start, jd_end, num_days)
+#         if len(df_obs_data) <= 0:
 #             print('>>>>> No observations found for ' + star_id + ' in this date range.')
 #             return
 #
 #         # Build plot data:
-#         x = df['JD']
-#         y = df['mag']
-#         uncert = pd.Series([max(0.0, u) for u in df['uncert']])
-#         colors = [COLOR_BY_BAND.get(band, None) for band in df['band']]
+#         x = df_obs_data['JD']
+#         y = df_obs_data['mag']
+#         uncert = pd.Series([max(0.0, u) for u in df_obs_data['uncert']])
+#         colors = [COLOR_BY_BAND.get(band, None) for band in df_obs_data['band']]
 #
 #         # Construct axes and other structure of the plot:
 #         ax = fig.add_subplot(111)
