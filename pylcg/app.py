@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import webbrowser
 
 import matplotlib
 matplotlib.use('TkAgg')  # graphics backend
@@ -10,12 +11,10 @@ from matplotlib import pyplot as plt
 import tkinter as tk
 from tkinter import ttk
 
-import pandas as pd
-
 import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
-from pylcg.util import jd_now
+from pylcg.util import jd_now, make_safe_star_id
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -118,19 +117,19 @@ class ApplicationPylcg(tk.Tk):
 
         # Subframe 'logo_frame':
         logo_frame = ttk.Frame(self.control_frame)
-        logo_frame.grid(row=0, column=0, padx=20, pady=15)
+        logo_frame.grid(row=0, column=0, padx=20, pady=8)
         label_logo = tk.Label(logo_frame, text='\n' + PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='gray')
         label_logo.grid(sticky='sew')
         label_logo = tk.Label(logo_frame, text=PYLCG_SUB_LOGO, font=PYLCG_SUB_LOGO_FONT, fg='black')
         label_logo.grid(sticky='sew')
-        # Subframe 'control_subframe1':
 
+        # Subframe 'control_subframe1':
         control_subframe1 = ttk.Frame(self.control_frame, padding=5)
         control_subframe1.grid(row=1, column=0, sticky=tk.N)
         control_subframe1.grid_columnconfigure(0, weight=1)
         control_subframe1.grid_columnconfigure(1, weight=1)
         # Star labelframe:
-        star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=10)
+        star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=8)
         star_labelframe.grid(pady=15, sticky='ew')
         self.star_entered = tk.StringVar()
         self.star_entered.set('UZ Cam')  # dummy star just to get started.
@@ -151,7 +150,7 @@ class ApplicationPylcg(tk.Tk):
         self.button_prev.config(state='disabled')  # For now
         self.button_next.config(state='disabled')  # For now
         # Time span labelframe:
-        timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span ', padx=10, pady=10)
+        timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span ', padx=10, pady=8)
         timespan_labelframe.grid(pady=15, sticky='ew')
         timespan_labelframe.grid_columnconfigure(1, weight=1)
         self.days_to_plot = tk.StringVar()
@@ -182,7 +181,7 @@ class ApplicationPylcg(tk.Tk):
 
         # Bands labelframe:
         self.bands_labelframe = tk.LabelFrame(control_subframe1, text=' Bands ', padx=15, pady=10)
-        self.bands_labelframe.grid(pady=15, sticky='ew')
+        self.bands_labelframe.grid(pady=10, sticky='ew')
         self.bands_labelframe.grid_columnconfigure(0, weight=1)
         self.bands_labelframe.grid_columnconfigure(1, weight=1)
 
@@ -205,31 +204,31 @@ class ApplicationPylcg(tk.Tk):
         self._set_band_flags_from_preferences()
         self.band_u_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='U      ',
                                                   variable=self.band_flags['U'],
-                                                  command=self._update_bands_to_plot)
+                                                  command=self._update_bands_to_plot_then_plot)
         self.band_b_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='B',
                                                   variable=self.band_flags['B'],
-                                                  command=self._update_bands_to_plot)
+                                                  command=self._update_bands_to_plot_then_plot)
         self.band_v_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='V',
                                                   variable=self.band_flags['V'],
-                                                  command=self._update_bands_to_plot)
+                                                  command=self._update_bands_to_plot_then_plot)
         self.band_r_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='R',
                                                   variable=self.band_flags['R'],
-                                                  command=self._update_bands_to_plot)
+                                                  command=self._update_bands_to_plot_then_plot)
         self.band_i_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='I',
                                                   variable=self.band_flags['I'],
-                                                  command=self._update_bands_to_plot)
+                                                  command=self._update_bands_to_plot_then_plot)
         self.band_vis_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='Vis.',
                                                     variable=self.band_flags['Vis.'],
-                                                    command=self._update_bands_to_plot)
+                                                    command=self._update_bands_to_plot_then_plot)
         self.band_tg_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='TG',
                                                    variable=self.band_flags['TG'],
-                                                   command=self._update_bands_to_plot)
+                                                   command=self._update_bands_to_plot_then_plot)
         self.band_others_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='others',
                                                        variable=self.band_flags['others'],
-                                                       command=self._update_bands_to_plot)
+                                                       command=self._update_bands_to_plot_then_plot)
         self.band_all_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='ALL',
                                                     variable=self.band_flags['ALL'],
-                                                    command=self._update_bands_to_plot)
+                                                    command=self._update_bands_to_plot_then_plot)
         self.band_u_checkbutton.grid(row=0, column=0, sticky='w')
         self.band_b_checkbutton.grid(row=1, column=0, sticky='w')
         self.band_v_checkbutton.grid(row=2, column=0, sticky='w')
@@ -240,12 +239,40 @@ class ApplicationPylcg(tk.Tk):
         self.band_others_checkbutton.grid(row=2, column=1, sticky='w')
         self.band_all_checkbutton.grid(row=4, column=1, sticky='w')
 
-        button_preferences = ttk.Button(control_subframe1, text='Preferences...',
+        checkbutton_frame = tk.Frame(control_subframe1)
+        checkbutton_frame.grid(sticky='ew')
+        self.grid_flag = tk.BooleanVar()
+        self.errorbar_flag = tk.BooleanVar()
+        self.grid_flag.set(True)
+        self.errorbar_flag.set(True)
+        self.grid_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(), True))
+        self.errorbar_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(),
+                                                                                True))
+        grid_checkbutton = ttk.Checkbutton(checkbutton_frame, text='grid', variable=self.grid_flag)
+        errorbars_checkbutton = ttk.Checkbutton(checkbutton_frame, text='error bars',
+                                                variable=self.errorbar_flag)
+        grid_checkbutton.grid(row=0, column=0, sticky='w')
+        errorbars_checkbutton.grid(row=1, column=0, sticky='w')
+
+        button_frame = tk.Frame(control_subframe1, pady=12)
+        button_frame.grid(sticky='ew')
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
+        button_preferences = ttk.Button(button_frame, text='Preferences...',
                                         command=self._preferences_window)
-        button_preferences.grid(pady=5, sticky='ew')
-        button_listobservers = ttk.Button(control_subframe1, text='List Observers',
+        button_listobservers = ttk.Button(button_frame, text='List Observers',
                                           command=self._listobservers_window)
-        button_listobservers.grid(pady=5, sticky='ew')
+        button_vsx = ttk.Button(button_frame, text='VSX', command=self._webbrowse_vsx)
+        button_webobs = ttk.Button(button_frame, text='Observations',
+                                   command=self._webbrowse_webobs)
+        button_preferences.grid(row=0, column=0, sticky='ew')
+        button_listobservers.grid(row=1, column=0, sticky='ew')
+        button_vsx.grid(row=0, column=1, sticky='ew')
+        button_webobs.grid(row=1, column=1, sticky='ew')
+        button_preferences.state(['disabled'])
+        button_listobservers.state(['disabled'])
+        button_vsx.state(['!disabled'])  # enabled
+        button_webobs.state(['!disabled'])  # enabled
 
         # Subframe quit_frame:
         quit_frame = tk.Frame(self.control_frame, height=60)
@@ -258,25 +285,34 @@ class ApplicationPylcg(tk.Tk):
         # 'transient' window style (not modal).
         # Lay out window elements:
         preferences_window = tk.Toplevel(self)
-        tk.Label(preferences_window, text='pylcg Preferences').pack(sticky='new')
+        tk.Label(preferences_window, text='pylcg Preferences').grid(sticky='new')
         preferences_window.transient(self)
         frame1 = ttk.Frame(preferences_window)
-        frame1.pack(sticky='ew')
+        frame1.grid(sticky='ew')
         show_errorbars = ttk.Checkbutton(frame1, text='show errorbars')
         show_errorbars.grid(row=0, column=0)
         show_grid = ttk.Checkbutton(frame1, text='show grid')
         show_grid.grid(row=1, column=0)
         # plot_style = tk.Listbox(frame1, )
         # Put data in window elements:
-
-
-        # On window close, (1) write preferences, (2) close gracefully.
+        #
+        # On preferences window close, (1) write preferences to file, (2) close window gracefully.
 
     def _about_window(self):
         pass
 
     def _listobservers_window(self):
         pass
+
+    def _webbrowse_vsx(self):
+        url = 'https://www.aavso.org/vsx/index.php?view=results.get&ident=' +\
+              make_safe_star_id(self.star_entered.get())
+        webbrowser.open(url)
+
+    def _webbrowse_webobs(self):
+        url = 'https://www.aavso.org/apps/webobs/results?star=' +\
+              make_safe_star_id(self.star_entered.get())
+        webbrowser.open(url)
 
     def _quit_window(self):
         print('Quit was pressed...stopping now.')
@@ -302,6 +338,11 @@ class ApplicationPylcg(tk.Tk):
 
     def _use_now(self):
         self.jdend.set('{:20.6f}'.format(jd_now()).strip())
+
+    def _update_bands_to_plot_then_plot(self):
+        """  Needed only for updating Band checkbuttons."""
+        self._update_bands_to_plot()
+        self._plot_star(self.star_entered.get(), False)  # update plot, but data already downloaded.
 
     def _update_bands_to_plot(self):
         if self.band_flags['ALL'].get() is True:
@@ -335,9 +376,9 @@ class ApplicationPylcg(tk.Tk):
         if must_get_obs_data:
             self.df_obs_data = web.get_vsx_obs(star_id=star_id,
                                                jd_start=jd_start, jd_end=jd_end, num_days=num_days)
+        print('redraw_plot(): ', self.errorbar_flag, self.grid_flag)
         plotter.redraw_plot(self.canvas, self.df_obs_data, star_id, bands_to_plot=self.bands_to_plot,
-                            show_errorbars=self.preferences.get('Format preferences', 'show errorbars'),
-                            show_grid=self.preferences.get('Format preferences', 'show grid'),
+                            show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=num_days)
 
 

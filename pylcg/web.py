@@ -2,6 +2,7 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
 import urllib
 import webbrowser
+import functools
 
 import pandas as pd
 
@@ -19,13 +20,8 @@ class WebAddressNotAvailableError(Error):
     pass
 
 
-class NoDataError(Error):
-    pass
-
-
+@functools.lru_cache(maxsize=100, typed=False)
 def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=500):
-    #  simply returns an pandas dataframe containing data,
-    #   no parsing or cacheing. If star ID not in webobs, this returns a dataframe with no rows.
     """
     Downloads observations from AAVSO's webobs for ONE star (not fov), returns pandas dataframe.
        If star not in AAVSO's webobs site, return a dataframe with no rows.
@@ -46,21 +42,18 @@ def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=
         jd_start = jd_end - num_days
     parm_fromjd = '&fromjd=' + '{:20.5f}'.format(jd_start).strip()
 
-    dataframe = None  # default if all delimiters fail
-    df_is_ok = False  # "
+    dataframe = pd.DataFrame()  # empty dataframe if no data (all delimiters tried fail to deliver obs)
     for delimiter in VSX_DELIMITERS:  # we try all limiters until one succeeds or (error) all have failed.
         parm_delimiter = '&delimiter=' + delimiter
         url = url_header + parm_ident + parm_tojd + parm_fromjd + parm_delimiter
         try:
             dataframe = pd.read_csv(url, sep=delimiter)
+            # print(url, 'queried.')
         except urllib.error.URLError:
             raise WebAddressNotAvailableError(url_header)
         if dataframe_has_data(dataframe):
             if dataframe_data_appear_valid(dataframe):
-                df_is_ok = True
                 break
-    if not df_is_ok:
-        raise NoDataError(star_id)
     return dataframe
 
 
