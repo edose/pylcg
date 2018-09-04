@@ -1,6 +1,6 @@
 # pylcg
 
-##### A new (August-September 2018) python 3 replacement for AAVSO's venerable but doomed Light Curve Generator "LCG V1".
+#### A new (August-September 2018) python 3 replacement for AAVSO's venerable but doomed Light Curve Generator "LCG V1".
 
 Mid-2018, the [AAVSO](http://www.aavso.org) (American Association of Variable Star Observers) decided that it must retire its original Light Curve Generator [LCG V1](https://www.aavso.org/lcg). For years it has been AAVSO's main web service for plotting variable-star "light curves". But LCG V1 will probably disappear late 2018.
  
@@ -8,7 +8,7 @@ While AAVSO's newer light-curve plotting tool [LCG V2](https://www.aavso.org/LCG
 
 So, in short, this author wrote this pylcg software as a lightweight, streamlined, but full-featured light curve plotting tool. By contrast to AAVSO's LCG V1 and LCG V2, which are run on AAVSO's servers as web services, pylcg is offered as a Windows executable to run on one's own PC.
 
->A pylcg 0.1 [screenshot](https://github.com/edose/pylcg/pylcg/screenshot_pylcg.png) is available here on this repository. Users of LCG V1 will get it right away and won't need much help.
+>A pylcg 0.1 [screenshot](https://github.com/edose/pylcg/blob/master/screenshot_pylcg.png) is available here on this repository. Users of LCG V1 will get it right away and won't need much help.
 
 ### How to use pylcg version 0.1
 
@@ -34,7 +34,7 @@ To see the **_VSX record_** for the current star, click the "VSX" button. A popu
 To see the **_WebObs observations_** for this star, click the "Observations" button.
 
 The _**Toolbar**_ (at lower left from the plot) has seven buttons. Let me cover them in a special order so you'll understand right away how they work together:
-* The magnifying glass (5th button) is ZOOM, the button most often used. Click the zoom icon then just drag a rectangle inside the plot, and the rectangle will zoom to full plot size. You can repeat this zooming as many times as you like.
+* The magnifying glass (5th button) is ZOOM, the button most often used. Click the zoom icon, then just drag a rectangle inside the plot, and the rectangle will zoom to full plot size. You can repeat this zooming as many times as you like.
 * The left arrow (2nd button) goes back one zoom level. So never fear a zoom--if you don't like it, just hit the left arrow.
 * The right arrow (3rd button) goes forward one zoom level if any.
 * The home icon (1st button) resets the plot to your original scales.
@@ -42,13 +42,15 @@ The _**Toolbar**_ (at lower left from the plot) has seven buttons. Let me cover 
 * The settings icon (6th button) is rarely used except perhaps to tweak plots for publication.
 * The disk icon (last button) allows you to save the plot as an image file (PNG format is default and recommended).
 
-_**Data cacheing**_: Pylcg 0.1 does downloads raw data from AAVSO for every plot, but it saves that data in a local cache. It will not reload the 2nd or 100th time you plot the same star with the same time range, so long as you keep pylcg open.
+_**Data cacheing**_: Pylcg 0.1 does download data from AAVSO for every plot, but it saves that data in a local cache. It will not reload the 2nd or 100th time you plot the same star with the same time range, so long as you keep pylcg open.
 
 ### What doesn't work yet?
 
 Preferences are limited to persistence of time-span Number of Days and band selections.
 
 The menu bar doesn't have much, although the Exit, Browse Repo, and About menu items do work.
+
+When changing settings (e.g, bands, grid), a zoomed-in plot will snap back to full time span. This is a "feature" of the toolbar inherited from matplotlib. Happily, it probably won't affect most users who will choose their settings once and rarely change them. If it's really critical to someone, I'll research a fix for this. But I certainly did not want to hold up pylcg just for this.
 
 ### What does the future hold?
 
@@ -62,7 +64,7 @@ The menu bar doesn't have much, although the Exit, Browse Repo, and About menu i
 
 * Possibly: various annotations right on the plot. Optional? Suggestions?
 
-### Beyond that ... _What do \*you\* want its future to be?_
+### Beyond that ... What do \*you\* want its future to be?
  
  _Please let me know:_
 * on the AAVSO Forum (best for AAVSO-public comments), or
@@ -70,7 +72,8 @@ The menu bar doesn't have much, although the Exit, Browse Repo, and About menu i
 
 - - -
 
->Thank you\
+>Thank you
+>
 >Eric Dose\
->Albuquerque New Mexico, USA\
+>Albuquerque, New Mexico, USA\
 >   _AAVSO observer DERA_
