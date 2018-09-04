@@ -331,9 +331,8 @@ class ApplicationPylcg(tk.Tk):
         quit_frame.grid_columnconfigure(0, weight=1)
         quit_frame.grid(padx=8, pady=32, sticky='ew')
         quit_button = ttk.Button(quit_frame, text='Close', width=16, cursor='star',
-                                 command=about_window.destroy)  # (not quit, which would exit pylcg)
+                                 command=about_window.destroy)  # (not .quit(), which would exit pylcg)
         quit_button.grid(sticky='ew')
-
         label_author = tk.Label(about_frame, text=ABOUT_AUTHOR, font=ABOUT_AUTHOR_FONT, justify=tk.CENTER)
         label_author.grid(sticky='ew')
 
