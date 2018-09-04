@@ -1,6 +1,6 @@
-#pylcg
+# pylcg
 
-#####A new (August-September 2018) python 3 replacement for AAVSO's venerable but doomed Light Curve Generator "LCG V1".
+##### A new (August-September 2018) python 3 replacement for AAVSO's venerable but doomed Light Curve Generator "LCG V1".
 
 Mid-2018, the [AAVSO](http://www.aavso.org) (American Association of Variable Star Observers) decided that it must retire its original Light Curve Generator [LCG V1](https://www.aavso.org/lcg). For years it has been AAVSO's main web service for plotting variable-star "light curves". But LCG V1 will probably disappear late 2018.
  
@@ -10,7 +10,7 @@ So, in short, this author wrote this pylcg software as a lightweight, streamline
 
 >A pylcg 0.1 [screenshot](https://github.com/edose/pylcg/pylcg/screenshot_pylcg.png) is available here on this repository. Users of LCG V1 will get it right away and won't need much help.
 
-###How to use pylcg version 0.1
+### How to use pylcg version 0.1
 
 For now, pylcg operates one plot at a time, just as web-based LCG does.
 
@@ -25,9 +25,9 @@ To see the same plot but with different bands, just select or deselect any bands
 
 Same with grid and error bars: change the check boxes and it updates immediately.
 
-###Additional Features
+### Additional Features
 
-The whole pylcg window is resizeable! Drag and drop the (say) right bottom corner of the whole window to resize the plot. You can shrink it small enough to fit easily in a laptop screen, or make it as large as you can stand (but note: the axes and data points don't grow with the screen).
+**_Plots are resizeable!_** Drag and drop the (say) right bottom corner of the whole window to resize the plot. You can shrink it small enough to fit easily in a laptop screen, or make it as large as you can stand (but note: the axes and data points don't grow with the screen).
 
 To see the **_VSX record_** for the current star, click the "VSX" button. A populated VSX search page will appear in your browser.
 
@@ -44,7 +44,7 @@ The _**Toolbar**_ (at lower left from the plot) has seven buttons. Let me cover 
 
 _**Data cacheing**_: Pylcg 0.1 does downloads raw data from AAVSO for every plot, but it saves that data in a local cache. It will not reload the 2nd or 100th time you plot the same star with the same time range, so long as you keep pylcg open.
 
-###What doesn't work yet?
+### What doesn't work yet?
 
 Preferences are limited to persistence of time-span Number of Days and band selections.
 
@@ -62,9 +62,9 @@ The menu bar doesn't have much, although the Exit, Browse Repo, and About menu i
 
 * Possibly: various annotations right on the plot. Optional? Suggestions?
 
->Beyond that ... _What do **you** want its future to be?_
+### Beyond that ... _What do \*you\* want its future to be?_
  
- **_Please let me know:_**
+ _Please let me know:_
 * on the AAVSO Forum (best for AAVSO-public comments), or
 * via AAVSO private message (for comments you'd prefer be held in confidence).
 
@@ -73,4 +73,4 @@ The menu bar doesn't have much, although the Exit, Browse Repo, and About menu i
 >Thank you\
 >Eric Dose\
 >Albuquerque New Mexico, USA\
->   AAVSO observer DERA
+>   _AAVSO observer DERA_
