@@ -9,7 +9,9 @@ import pandas as pd
 import pylcg.util as util
 
 VSX_DELIMITERS = ['$', '`', '^', '%']  # NB: delim of ',' will fail as obsName values already have a comma.
-REPO_URL = 'https://www.github.com/edose/pylcg'
+PYLCG_REPO_URL = 'https://www.github.com/edose/pylcg'
+VSX_URL_STUB = 'https://www.aavso.org/vsx/index.php?view=results.get&ident='
+WEBOBS_URL_STUB = 'https://www.aavso.org/apps/webobs/results?star='
 
 
 class Error(Exception):
@@ -75,5 +77,15 @@ def dataframe_data_appear_valid(dataframe):
     return True
 
 
-def browse_repo():
-    webbrowser.open_new_tab(REPO_URL)
+def webbrowse_repo():
+    webbrowser.open_new_tab(PYLCG_REPO_URL)
+
+
+def webbrowse_vsx(star_id):
+    url = VSX_URL_STUB + util.make_safe_star_id(star_id)
+    webbrowser.open(url)
+
+
+def webbrowse_webobs(star_id):
+    url = WEBOBS_URL_STUB + util.make_safe_star_id(star_id)
+    webbrowser.open(url)

@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 
 import tkinter as tk
 from tkinter import ttk
+import tkinter.messagebox as tkm
 
 import pylcg.preferences as prefs
 import pylcg.plot as plotter
@@ -25,13 +26,20 @@ PYLCG_LOGO = 'pylcg v0.1'
 PYLCG_LOGO_FONT = ('consolas', 20)
 PYLCG_SUB_LOGO = 'for local testing only'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
+PYLCG_VERSION = '0.1 BETA'
+PYLCG_VERSION_DATE = 'September 8, 2018'
+PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
+PYLCG_REPO_FONT = ('consolas', 8, 'underline')
+ABOUT_AUTHOR = 'Made in Albuquerque, New Mexico, USA\n'\
+               'by Eric Dose, for the AAVSO.\n'
+ABOUT_AUTHOR_FONT = ('verdana', 7, 'italic')
 
 
 class ApplicationPylcg(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
 
-        self.iconbitmap(self, default='pylcg-icon16.ico')  # must be an icon file
+        self.iconbitmap(self, default='pylcg-icon.ico')  # must be an icon file
         tk.Tk.wm_title(self, 'pylcg  -- Light Curve Generator in python 3')
         self.resizable(True, True)
 
@@ -85,7 +93,7 @@ class ApplicationPylcg(tk.Tk):
                                      command=prefs.Preferences.reset_current_to_default)
         menubar.add_cascade(label='Preferences', menu=preferences_menu)
         help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label='Browse pylcg repo', command=web.browse_repo)
+        help_menu.add_command(label='Browse pylcg repo and README', command=web.webbrowse_repo)
         help_menu.add_command(label='About', command=self._about_window)
         menubar.add_cascade(label='Help', menu=help_menu)
         tk.Tk.config(self, menu=menubar)
@@ -262,9 +270,10 @@ class ApplicationPylcg(tk.Tk):
                                         command=self._preferences_window)
         button_listobservers = ttk.Button(button_frame, text='List Observers',
                                           command=self._listobservers_window)
-        button_vsx = ttk.Button(button_frame, text='VSX', command=self._webbrowse_vsx)
+        button_vsx = ttk.Button(button_frame, text='VSX',
+                                command=lambda: web.webbrowse_vsx(self.star_entered.get()))
         button_webobs = ttk.Button(button_frame, text='Observations',
-                                   command=self._webbrowse_webobs)
+                                   command=lambda: web.webbrowse_webobs(self.star_entered.get()))
         button_preferences.grid(row=0, column=0, sticky='ew')
         button_listobservers.grid(row=1, column=0, sticky='ew')
         button_vsx.grid(row=0, column=1, sticky='ew')
@@ -276,10 +285,11 @@ class ApplicationPylcg(tk.Tk):
 
         # Subframe quit_frame:
         quit_frame = tk.Frame(self.control_frame, height=60)
-        quit_frame.grid(row=2, column=0, pady=10)
+        quit_frame.grid_columnconfigure(0, weight=1)
+        quit_frame.grid(row=2, column=0, padx=8, pady=10, sticky='ew')
         self.quit_button = ttk.Button(quit_frame, text='QUIT pylcg', width=16, cursor='pirate',
                                       command=self._quit_window)
-        self.quit_button.grid(row=0, column=0)
+        self.quit_button.grid(row=0, column=0, sticky='ew')
 
     def _preferences_window(self):
         # 'transient' window style (not modal).
@@ -299,28 +309,43 @@ class ApplicationPylcg(tk.Tk):
         # On preferences window close, (1) write preferences to file, (2) close window gracefully.
 
     def _about_window(self):
-        pass
+        # TODO: later, probably refactor About window into a separate class.
+        about_window = tk.Toplevel(self)
+        about_window.transient(self)  # stays on top of main window.
+        # about_window.overrideredirect(1)  # plain window.
+        about_frame = ttk.Frame(about_window)  # entire window
+        about_frame.grid(row=0, column=0, padx=20, pady=10)
+        about_frame.columnconfigure(0, minsize=240)
+        label_logo = tk.Label(about_frame, text='\n' + PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='gray')
+        label_logo.grid(sticky='ew')
+        label_version = tk.Label(about_frame, text=PYLCG_VERSION + ',  ' + PYLCG_VERSION_DATE)
+        label_version.grid(sticky='ew')
+        label_code = tk.Label(about_frame, text='\nSource code & README at:', justify=tk.LEFT)
+        label_code.grid(sticky='w')
+        label_repo = tk.Label(about_frame, text=web.PYLCG_REPO_URL, justify=tk.RIGHT,
+                              font=PYLCG_REPO_FONT, cursor='hand2')
+        label_repo.grid(sticky='e')
+        # next line: odd syntax, but one must account for .bind()'s including event as a parameter:
+        label_repo.bind('<Button-1>', lambda event: web.webbrowse_repo())
+        quit_frame = tk.Frame(about_frame, height=60)
+        quit_frame.grid_columnconfigure(0, weight=1)
+        quit_frame.grid(padx=8, pady=32, sticky='ew')
+        quit_button = ttk.Button(quit_frame, text='Close', width=16, cursor='star',
+                                 command=about_window.destroy)  # (not quit, which would exit pylcg)
+        quit_button.grid(sticky='ew')
+
+        label_author = tk.Label(about_frame, text=ABOUT_AUTHOR, font=ABOUT_AUTHOR_FONT, justify=tk.CENTER)
+        label_author.grid(sticky='ew')
 
     def _listobservers_window(self):
         pass
 
-    def _webbrowse_vsx(self):
-        url = 'https://www.aavso.org/vsx/index.php?view=results.get&ident=' +\
-              make_safe_star_id(self.star_entered.get())
-        webbrowser.open(url)
-
-    def _webbrowse_webobs(self):
-        url = 'https://www.aavso.org/apps/webobs/results?star=' +\
-              make_safe_star_id(self.star_entered.get())
-        webbrowser.open(url)
-
     def _quit_window(self):
-        print('Quit was pressed...stopping now.')
-        self.quit_button.config(state='disabled')
-        # plotter.message_popup("You're leaving me???")
-        self.preferences.write_current_config_to_ini_file()
-        self.quit()     # stop mainloop
-        self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
+        # self.quit_button.config(state='disabled')
+        if tkm.askokcancel('Quit?', 'You really want to quit pylcg?'):
+            self.preferences.write_current_config_to_ini_file()
+            self.quit()     # stop mainloop
+            self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
     def _prev_star(self):
         print('Prev was pressed.')
@@ -376,7 +401,7 @@ class ApplicationPylcg(tk.Tk):
         if must_get_obs_data:
             self.df_obs_data = web.get_vsx_obs(star_id=star_id,
                                                jd_start=jd_start, jd_end=jd_end, num_days=num_days)
-        print('redraw_plot(): ', self.errorbar_flag, self.grid_flag)
+        print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
         plotter.redraw_plot(self.canvas, self.df_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=num_days)
