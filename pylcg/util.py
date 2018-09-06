@@ -1,9 +1,9 @@
-__author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
-
 from datetime import datetime, timezone
-# OrderedDict removes duplicates while preserving order.
-#    (NB: in py 3.7+, native py dictionaries will do this too.)
-from collections import OrderedDict
+
+from collections import OrderedDict   # OrderedDict removes duplicates while preserving order
+#                                       (NB: in py 3.7+, native python dictionaries will do this too.)
+
+__author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
 
 def make_safe_star_id(star_id):

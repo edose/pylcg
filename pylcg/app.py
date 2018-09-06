@@ -1,7 +1,7 @@
 from collections import OrderedDict
-import webbrowser
 
 import matplotlib
+# next line (.use()) *must* come before other matplotlib/tkinter imports, even if IDE complains.
 matplotlib.use('TkAgg')  # graphics backend
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
@@ -15,9 +15,24 @@ import tkinter.messagebox as tkm
 import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
-from pylcg.util import jd_now, make_safe_star_id
+from pylcg.util import jd_now
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
+
+"""  pylcg, a proposed replacement for AAVSO's venerable but doomed Light Curve Generator LCG V1.
+     Plots light curve for a star having data in AAVSO's AID database.
+         This program retrieves data from AAVSO and plots the light curve in the customary
+         fashion, and very similarly to AAVSO's LCG V1(x=date, y=magnitude inverted).
+     This program provided as an executable file suitable for Windows 7/8/10.
+     Software built in python 3.6, executable includes the same.
+         GUI built with python's built-in package tkinter.
+         Web access built with python's built-in packages urllib and webbrowser.
+         Data cacheing built with python's built-in package functools.     
+         Plotting built with package matplotlib v 2.0.2.
+         Data management (series and dataframes) built with package pandas 0.20.3.
+     This pylcg version: 0.1 BETA, September 6, 2018.
+     Eric Dose, Albuquerque, New Mexico, USA
+"""
 
 ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', 'CV', 'CR', 'CBB',
              'SZ', 'SU', 'SG', 'SR', 'SI', 'STU', 'STV', 'STB', 'STY', 'STHBW', 'STHBN',
@@ -27,7 +42,7 @@ PYLCG_LOGO_FONT = ('consolas', 20)
 PYLCG_SUB_LOGO = 'for local testing only'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 PYLCG_VERSION = '0.1 BETA'
-PYLCG_VERSION_DATE = 'September 8, 2018'
+PYLCG_VERSION_DATE = 'September 6, 2018'
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
 ABOUT_AUTHOR = 'Made in Albuquerque, New Mexico, USA\n'\
@@ -36,6 +51,7 @@ ABOUT_AUTHOR_FONT = ('verdana', 7, 'italic')
 
 
 class ApplicationPylcg(tk.Tk):
+    """  Main pylcg program."""
     def __init__(self):
         tk.Tk.__init__(self)
 
@@ -61,7 +77,7 @@ class ApplicationPylcg(tk.Tk):
         ax = fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(fig, plot_frame)
         self.canvas.show()
-        # To change size, consider:
+        # To change size, alternatively:
         #    fig.set_size_inches(new_width, new_height, forward=True)
         #    fig.set_dpi(100)
 
@@ -72,19 +88,14 @@ class ApplicationPylcg(tk.Tk):
         toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
         self.update()
-
         self.build_control_frame()
 
-        # # Plot the first star (without waiting for button press):
-        # self._plot_star(self.star_ids[0], get_obs_data=True)
-        # if self.i_star >= len(self.star_ids) - 1:
-        #     self.button_next.config(state='disabled')
-
     def make_menu(self):
+        """  Build the GUI's menu. No return value."""
         # Build menu bar:
         menubar = tk.Menu(self.main_frame)
         file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label='Exit', command=quit)
+        file_menu.add_command(label='Exit', command=self._quit_window)
         menubar.add_cascade(label='File', menu=file_menu)
         preferences_menu = tk.Menu(menubar, tearoff=0)
         preferences_menu.add_command(label='Reload User Preferences',
@@ -92,6 +103,8 @@ class ApplicationPylcg(tk.Tk):
         preferences_menu.add_command(label='Set all Preferences to Defaults',
                                      command=prefs.Preferences.reset_current_to_default)
         menubar.add_cascade(label='Preferences', menu=preferences_menu)
+        preferences_menu.entryconfig('Reload User Preferences', state='disabled')
+        preferences_menu.entryconfig('Set all Preferences to Defaults', state='disabled')
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label='Browse pylcg repo and README', command=web.webbrowse_repo)
         help_menu.add_command(label='About', command=self._about_window)
@@ -99,6 +112,10 @@ class ApplicationPylcg(tk.Tk):
         tk.Tk.config(self, menu=menubar)
 
     def subdivide_main_frame(self):
+        """  Divides the program's entire GUI frame (main_frame) into a left-side display frame
+        and a right-side control frame.
+        :return: display_frame [tkinter Frame object].
+        """
         self.main_frame.grid_rowconfigure(0, weight=1)  # display_frame expandable.
         self.main_frame.grid_columnconfigure(0, weight=1)  # "
         display_frame = tk.Frame(self.main_frame)
@@ -108,6 +125,12 @@ class ApplicationPylcg(tk.Tk):
         return display_frame
 
     def subdivide_display_frame(self, display_frame):
+        """  Divides the large frame (display_frame) on left side of program's window into a large
+        plot frame (plot_frame) and a much smaller (toolbar_frame).
+        Greatly stabilizes operation of both windows.
+        :param display_frame: the Frame containing left side of program window [tkinter Frame object].
+        :return: plot_frame, toolbar_frame [a 2-tuple of tkinter Frame objects].
+        """
         display_frame.grid_rowconfigure(0, weight=1)  # plot_frame expandable.
         display_frame.grid_columnconfigure(0, weight=1)  # "
         plot_frame = tk.Frame(display_frame)
@@ -119,6 +142,9 @@ class ApplicationPylcg(tk.Tk):
         return plot_frame, toolbar_frame
 
     def build_control_frame(self):
+        """  Build the entire tall frame along right side of program's main window.
+        :return: [None]
+        """
         # Control Frame:
         self.control_frame.grid_rowconfigure(1, weight=1)
         self.control_frame.grid_columnconfigure(0, weight=1)
@@ -140,7 +166,7 @@ class ApplicationPylcg(tk.Tk):
         star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=8)
         star_labelframe.grid(pady=15, sticky='ew')
         self.star_entered = tk.StringVar()
-        self.star_entered.set('UZ Cam')  # dummy star just to get started.
+        self.star_entered.set('please enter Star ID here')  # dummy star just to get started.
         # self.this_star.trace("w", lambda name, index, mode: print(self.star_entered.get()))
         self.star_entry = ttk.Entry(star_labelframe, textvariable=self.star_entered)
         self.star_entry.grid(row=0, columnspan=2, sticky='ew')
@@ -303,13 +329,9 @@ class ApplicationPylcg(tk.Tk):
         show_errorbars.grid(row=0, column=0)
         show_grid = ttk.Checkbutton(frame1, text='show grid')
         show_grid.grid(row=1, column=0)
-        # plot_style = tk.Listbox(frame1, )
-        # Put data in window elements:
-        #
-        # On preferences window close, (1) write preferences to file, (2) close window gracefully.
 
     def _about_window(self):
-        # TODO: later, probably refactor About window into a separate class.
+        # TODO: later, probably refactor this "About" window into a separate class.
         about_window = tk.Toplevel(self)
         about_window.transient(self)  # stays on top of main window.
         # about_window.overrideredirect(1)  # plain window.
@@ -337,9 +359,13 @@ class ApplicationPylcg(tk.Tk):
         label_author.grid(sticky='ew')
 
     def _listobservers_window(self):
+        """  Postponed until later version, if there is demand for it."""
         pass
 
     def _quit_window(self):
+        """  Popup window to ensure user really wants to quit. Stops entire program if user confirms.
+        :return [None]
+        """
         # self.quit_button.config(state='disabled')
         if tkm.askokcancel('Quit?', 'You really want to quit pylcg?'):
             self.preferences.write_current_config_to_ini_file()
@@ -347,6 +373,7 @@ class ApplicationPylcg(tk.Tk):
             self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
     def _prev_star(self):
+        """  Postponed until version 0.2 BETA. """
         print('Prev was pressed.')
         self.i_star = max(0, self.i_star - 1)
         self.button_prev.config(state=(tk.DISABLED if self.i_star == 0 else tk.NORMAL))
@@ -354,6 +381,7 @@ class ApplicationPylcg(tk.Tk):
         self._plot_star(self.star_ids[self.i_star])
 
     def _next_star(self):
+        """  Postponed until version 0.2 BETA. """
         print('Next was pressed.')
         self.i_star = min(len(self.star_ids) - 1, self.i_star + 1)
         self.button_prev.config(state=(tk.DISABLED if self.i_star == 0 else tk.NORMAL))
@@ -361,14 +389,19 @@ class ApplicationPylcg(tk.Tk):
         self._plot_star(self.star_ids[self.i_star])
 
     def _use_now(self):
+        """  Set GUI's End JD entry box to current JD. """
         self.jdend.set('{:20.6f}'.format(jd_now()).strip())
 
     def _update_bands_to_plot_then_plot(self):
-        """  Needed only for updating Band checkbuttons."""
+        """  Provides a single function call to GUI components as they require. """
         self._update_bands_to_plot()
         self._plot_star(self.star_entered.get(), False)  # update plot, but data already downloaded.
 
     def _update_bands_to_plot(self):
+        """  Memorizes band checkbutton seetings before use in plotting.
+             Typically called whenever user changes a band checkbutton.
+             :return [None]
+        """
         if self.band_flags['ALL'].get() is True:
             self.bands_to_plot = ALL_BANDS
         else:
@@ -385,6 +418,11 @@ class ApplicationPylcg(tk.Tk):
             self.band_flags[band].set(band in self.bands_to_plot)
 
     def _plot_star(self, star_id, must_get_obs_data=True):
+        """  Assembles required data, and passes it to module plot.py, which does makes the plot.
+        :param star_id: ID of star to plot, read from GUI entry box.
+        :param must_get_obs_data: True iff new data needs to be downloaded from AAVSO.
+        :return [None]
+        """
         self._update_bands_to_plot()  # ensure sync with checkbuttons.
         self.preferences.set('Data preferences', 'bands', self.bands_to_plot)  # ensure bands are stored.
         jd_start = None if self.jdstart.get().strip() == '' else float(self.jdstart.get())
@@ -400,7 +438,7 @@ class ApplicationPylcg(tk.Tk):
         if must_get_obs_data:
             self.df_obs_data = web.get_vsx_obs(star_id=star_id,
                                                jd_start=jd_start, jd_end=jd_end, num_days=num_days)
-        print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
+        # print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
         plotter.redraw_plot(self.canvas, self.df_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=num_days)
