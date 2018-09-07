@@ -54,3 +54,84 @@ def get_star_ids_from_upload_file(filename):
     star_ids_as_found = [line.split(delimiter)[0].strip() for line in lines]  # may contain duplicates.
     star_ids = list(OrderedDict.fromkeys(star_ids_as_found))  # no duplicates, order preserved.
     return star_ids
+
+
+class Error(Exception):
+    pass
+
+
+class UnequalLengthError(Error):
+    pass
+
+
+class MiniDataFrame:
+    """  Tiny subset of pandas DataFrame facility. Holds a dict of equal-length lists.
+
+
+    """
+    def __init__(self, dict_of_lists):
+        self.dict = dict_of_lists
+        # Verify is a dict or OrderedDict:
+        if (not isinstance(dict_of_lists, dict)) or (not isinstance(dict_of_lists, OrderedDict)):
+            self.dict = None
+        # Verify dict has keys:
+        if self.dict is not None:
+            keys = list(self.dict.keys())
+            if len(keys) == 0:
+                self.dict = None
+        # Verify all dict values are lists:
+        if self.dict is not None:
+            for key in keys:
+                if not isinstance(self.dict[key], list):
+                    self.dict = None
+                    break
+        # Verify all lists are equal length:
+        if self.dict is not None:
+            first_length = len(self.dict[keys[0]])
+            for key in keys:
+                if len(self.dict[key]) != first_length:
+                    self.dict = None
+                    break
+        # Here, self.dict is either valid or None.
+
+    def column(self, column_name):
+        """  Return list. """
+        return self.dict[column_name]
+
+    def len(self):
+        """  Return length of lists, similar to pandas.DataFrame.len()."""
+        return len(self.dict[self.dict.keys()[0]])
+
+    def column_names(self):
+        """  Return list of column names."""
+        return list(self.dict.keys())
+
+    def ncol(self):
+        """  Return number of columns."""
+        return len(self.column_names())
+
+    def set_column(self, new_column_name, new_list):
+        """  Add or replace column with new_list.
+        :param new_column_name: column name to add or replace [string]
+        :param new_list: value for new column [list].
+        :return:
+        """
+        if len(new_list) != self.dict.len():
+            raise UnequalLengthError
+        else:
+            self.dict[new_column_name] = new_list.copy()
+
+    def from_url(self, url):
+        """  Constructor: read data from url, parse into MiniDataFrame object, and return it.
+        :param url: URL from which to get data.
+        :return: newly constructed object [MiniDataFrame object].
+        """
+        pass
+
+    def row_subset(self, boolean_list):
+        """  Return new MiniDataFrame object with rows selected by boolean_list; rows are copies.
+        :param boolean_list: True iff row is to be kept in subset [list of booleans,
+            length must equal length of this MiniDataFrame.
+        :return: subset MiniDataFrame [MiniDataFrame object].
+        """
+        pass

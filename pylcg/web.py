@@ -2,7 +2,8 @@ import urllib
 import webbrowser
 import functools
 
-import pandas as pd
+# import pandas as pd
+from pandas import DataFrame, Series, read_csv
 
 import pylcg.util as util
 
@@ -45,12 +46,12 @@ def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=
         jd_start = jd_end - num_days
     parm_fromjd = '&fromjd=' + '{:20.5f}'.format(jd_start).strip()
 
-    dataframe = pd.DataFrame()  # empty dataframe if no data (all delimiters tried fail to deliver obs)
+    dataframe = DataFrame()  # empty dataframe if no data (all delimiters tried fail to deliver obs)
     for delimiter in VSX_DELIMITERS:  # we try all limiters until one succeeds or (error) all have failed.
         parm_delimiter = '&delimiter=' + delimiter
         url = VSX_OBSERVATIONS_HEADER + parm_ident + parm_tojd + parm_fromjd + parm_delimiter
         try:
-            dataframe = pd.read_csv(url, sep=delimiter)
+            dataframe = read_csv(url, sep=delimiter)
             # print(url, 'queried.')
         except urllib.error.URLError:
             raise WebAddressNotAvailableError(url)

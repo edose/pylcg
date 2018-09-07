@@ -5,7 +5,8 @@ import tkinter as tk
 from tkinter import ttk
 from math import isnan
 
-import pandas as pd
+# import pandas as pd
+from pandas import DataFrame, Series, read_csv
 
 import pylcg.util as util
 
@@ -56,7 +57,7 @@ def redraw_plot(canvas, df, star_id, bands_to_plot,
     y = df['mag']
     uncert = [0.0 if isnan(u) else float(u) for u in df['uncert']]  # set any unknown uncertainties to zero.
     uncert = [max(0.0, u) for u in uncert]  # cast uncertainties to floats, zero any negatives.
-    uncert = pd.Series(uncert)  # a Series, to ensure alignment with x and y during selection in errorbar().
+    uncert = Series(uncert)  # a Series, to ensure alignment with x and y during selection in errorbar().
 
     # Construct plot elements:
     ax = canvas.figure.axes[0]

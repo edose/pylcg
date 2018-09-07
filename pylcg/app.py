@@ -8,6 +8,7 @@ from matplotlib.figure import Figure
 from matplotlib import style
 from matplotlib import pyplot as plt
 
+import sys
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as tkm
@@ -347,6 +348,10 @@ class ApplicationPylcg(tk.Tk):
         label_repo = tk.Label(about_frame, text=web.PYLCG_REPO_URL, justify=tk.RIGHT,
                               font=PYLCG_REPO_FONT, cursor='hand2')
         label_repo.grid(sticky='e')
+        label_py_version = tk.Label(about_frame, text='running py ' +
+                                                      sys.version.split('|')[0].split()[0].strip(),
+                                    font=ABOUT_AUTHOR_FONT, justify=tk.CENTER)
+        label_py_version.grid(sticky='ew')
         # next line: odd syntax, but one must account for .bind()'s including event as a parameter:
         label_repo.bind('<Button-1>', lambda event: web.webbrowse_repo())
         quit_frame = tk.Frame(about_frame, height=60)

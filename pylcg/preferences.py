@@ -17,8 +17,9 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
 
 PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, "data")
-PREFERENCES_INI_FULLPATH = os.path.join(DATA_DIRECTORY, 'preferences.ini')
+PREFERENCES_DIRECTORY = PYLCG_ROOT_DIRECTORY  # to make pyinstaller work
+# PREFERENCES_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, "data")
+PREFERENCES_INI_FULLPATH = os.path.join(PREFERENCES_DIRECTORY, 'preferences.ini')
 
 CONFIG_DELIMITERS = ('=',)  # we avoid ':' because we'll want to specify Windows directory paths.
 
@@ -159,4 +160,3 @@ class Preferences:
 
     def reset_current_to_default(self):
         self.current_config = copy_config(self.default_config)
-        # self.current_dict = extract_ordered_dict_from_config(self.current_config)
