@@ -5,9 +5,6 @@ import tkinter as tk
 from tkinter import ttk
 from math import isnan
 
-# import pandas as pd
-from pandas import DataFrame, Series, read_csv
-
 import pylcg.util as util
 
 
@@ -30,14 +27,14 @@ PLOT_TITLE_COLOR = 'gray'
 GRID_COLOR = 'lightgray'
 
 
-def redraw_plot(canvas, df, star_id, bands_to_plot,
+def redraw_plot(canvas, mdf, star_id, bands_to_plot,
                 show_errorbars=True, show_grid=True,
                 jd_start=None, jd_end=None, num_days=None):
     """  Reformat data for matplotlib, then clear and redraw plot area only, and trigger replacement of
     the old plot by the new plot within the containing tkinter Frame.
     Do not touch other areas of main page, and do not change any external data.
     :param canvas: canvas containing LCG plot [matplotlib FigureCanvasTkAgg object].
-    :param df: data to plot [pandas DataFrame].
+    :param mdf: data to plot [MiniDataFrame object].
     :param star_id: star ID to plot [string].
     :param bands_to_plot: AAVSO codes of bands to draw, e.g., ['V', 'Vis.'] [list of strings].
     :param show_errorbars: True to plot errorbars with datapoints, else False [boolean].
@@ -48,16 +45,17 @@ def redraw_plot(canvas, df, star_id, bands_to_plot,
     :param num_days:  number of days to plot [int or float]
     :return [None]
     """
-    if len(df) <= 0:
+    if mdf.dict is None:
+        message_popup('No observations found for ' + star_id + ' in this date range.')
+        return False
+    if mdf.len() <= 0:
         message_popup('No observations found for ' + star_id + ' in this date range.')
         return False
 
-    # Build plot data:
-    x = df['JD']
-    y = df['mag']
-    uncert = [0.0 if isnan(u) else float(u) for u in df['uncert']]  # set any unknown uncertainties to zero.
-    uncert = [max(0.0, u) for u in uncert]  # cast uncertainties to floats, zero any negatives.
-    uncert = Series(uncert)  # a Series, to ensure alignment with x and y during selection in errorbar().
+    # Clean up uncertainty data:
+    uncert = [0.0 if isnan(u) else u for u in mdf.column('uncert')]  # set any missing values to zero.
+    uncert = [max(0.0, u) for u in uncert]  # set any negatives to zero.
+    mdf.set_column('uncert', uncert)
 
     # Construct plot elements:
     ax = canvas.figure.axes[0]
@@ -68,17 +66,21 @@ def redraw_plot(canvas, df, star_id, bands_to_plot,
     if show_grid:
         ax.grid(True, color=GRID_COLOR, zorder=-1000)  # zorder->behind everything else.
     if show_errorbars:
-        is_to_be_drawn = [b in bands_to_plot for b in df['band']]
-        ax.errorbar(x=x[is_to_be_drawn], y=y[is_to_be_drawn], xerr=0.0, yerr=uncert[is_to_be_drawn],
+        is_to_be_drawn = [b in bands_to_plot for b in mdf.column('band')]
+        mdf_to_be_drawn = mdf.row_subset(is_to_be_drawn)
+        ax.errorbar(x=mdf_to_be_drawn.column('JD'), y=mdf_to_be_drawn.column('mag'),
+                    xerr=0.0, yerr=mdf_to_be_drawn.column('uncert'),
                     fmt='none', ecolor='gray', capsize=2, alpha=1,
                     zorder=+900)  # zorder->behind datapoint markers, above grid.
     legend_labels = []
     for band in bands_to_plot:
         band_color = BAND_DEFAULT_COLORS.get(band, BAND_DEFAULT_COLOR_DEFAULT)
         band_marker = BAND_MARKERS.get(band, BAND_MARKERS_DEFAULT)
-        is_band = [b == band for b in df['band']]
+        is_band = [b == band for b in mdf.column('band')]
+        mdf_band = mdf.row_subset(is_band)
         if sum(is_band) >= 1:
-            ax.scatter(x=x[is_band], y=y[is_band], color=band_color, marker=band_marker,
+            ax.scatter(x=mdf_band.column('JD'), y=mdf_band.column('mag'),
+                       color=band_color, marker=band_marker,
                        s=25, alpha=0.9, zorder=+1000)  # zorder->on top of everything.
             legend_labels.append(band)
     if jd_end is None:
@@ -108,6 +110,7 @@ def quit_and_destroy(window_object):
     """
     window_object.quit()
     window_object.destroy()
+
 
 def message_popup(message):
     """  Draws popup window displaying message to user.

@@ -2,9 +2,6 @@ import urllib
 import webbrowser
 import functools
 
-# import pandas as pd
-from pandas import DataFrame, Series, read_csv
-
 import pylcg.util as util
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
@@ -16,26 +13,18 @@ VSX_URL_STUB = 'https://www.aavso.org/vsx/index.php?view=results.get&ident='
 WEBOBS_URL_STUB = 'https://www.aavso.org/apps/webobs/results?star='
 
 
-class Error(Exception):
-    pass
-
-
-class WebAddressNotAvailableError(Error):
-    pass
-
-
 @functools.lru_cache(maxsize=100, typed=False)
 def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=500):
     """
-    Downloads observations from AAVSO's webobs for ONE star (not fov), returns pandas dataframe.
+    Downloads observations from AAVSO's webobs for ONE star (not fov), returns MiniDataFrame.
        If star not in AAVSO's webobs site, return a dataframe with no rows.
        Columns: target_name, date_string, filter, observer, jd, mag, error.
     :param star_id: the STAR id (not the fov's name).
     :param max_num_obs: maximum number of observations to get [int].  --  NOT YET IMPLEMENTED.
     :param jd_start: optional Julian date.
     :param jd_end: optional JD.
-    :return: simple pandas dataframe containing data for 1 star, 1 row per observation downloaded,
-        (empty DataFrame if there was some problem).
+    :return: MiniDataFrame containing data for 1 star, 1 row per observation downloaded,
+        (or None if there was some problem).
     """
     # url_header = 'https://www.aavso.org/vsx/index.php?view=api.delim'
     parm_ident = '&ident=' + util.make_safe_star_id(star_id)
@@ -46,43 +35,46 @@ def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=
         jd_start = jd_end - num_days
     parm_fromjd = '&fromjd=' + '{:20.5f}'.format(jd_start).strip()
 
-    dataframe = DataFrame()  # empty dataframe if no data (all delimiters tried fail to deliver obs)
+    minidataframe = None  # if no data (all delimiters tried fail to deliver obs).
     for delimiter in VSX_DELIMITERS:  # we try all limiters until one succeeds or (error) all have failed.
         parm_delimiter = '&delimiter=' + delimiter
         url = VSX_OBSERVATIONS_HEADER + parm_ident + parm_tojd + parm_fromjd + parm_delimiter
-        try:
-            dataframe = read_csv(url, sep=delimiter)
-            # print(url, 'queried.')
-        except urllib.error.URLError:
-            raise WebAddressNotAvailableError(url)
-        if dataframe_has_data(dataframe):
-            if dataframe_data_appear_valid(dataframe):
+        minidataframe = util.MiniDataFrame.from_url(url, delimiter=delimiter)
+        if minidataframe_has_data(minidataframe):
+            if minidataframe_data_appear_valid(minidataframe):
+                for column_name in ['JD', 'mag', 'uncert']:
+                    minidataframe.to_float(column_name)
                 break
-    return dataframe
+    return minidataframe
 
 
-def dataframe_has_data(dataframe):
-    """  Determines whether Dataframe (from observation download) has data in it or not.
-    :param dataframe: dataframe to test [pandas Dataframe].
-    :return: True iff dataframe has data [boolean].
+def minidataframe_has_data(minidataframe):
+    """  Determines whether MiniDataframe (from observation download) has data in it or not.
+    :param minidataframe: minidataframe to test [MiniDataframe object].
+    :return: True iff minidataframe has data [boolean].
     """
-    if dataframe is None:
+    if minidataframe.dict is None:
         return False
-    if dataframe.shape[0] == 0:
+    if minidataframe.len() == 0:
         return False
     return True
 
 
-def dataframe_data_appear_valid(dataframe):
-    """  Determines whether Dataframe (from observation download) appears valid for use in pylcg, or not.
-    :param dataframe: dataframe to test [pandas Dataframe].
-    :return: True iff dataframe appears valid for use in pylcg [boolean].
+def minidataframe_data_appear_valid(minidataframe):
+    """  Determines whether MiniDataframe (from observation download) appears valid for use in pylcg.
+    :param minidataframe: minidataframe to test [MiniDataframe object].
+    :return: True iff minidataframe appears valid for use in pylcg [boolean].
     """
-    if dataframe.shape[1] < 20:
+    if minidataframe.ncol() < 20:
         return False
-    if 'uncert' not in dataframe.columns:
+    for column_name in ['uncert', 'JD', 'mag', 'band']:
+        if column_name not in minidataframe.column_names():
+            return False
+    if not isinstance(minidataframe.column('uncert')[0], str):
         return False
-    if not dataframe['uncert'].dtype.name == 'float64':
+    try:
+        _ = float(minidataframe.column('uncert')[0])
+    except ValueError:
         return False
     return True
 

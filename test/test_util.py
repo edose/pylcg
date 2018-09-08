@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timezone, timedelta
+from math import nan, isnan
 
 import pytest
 
@@ -54,3 +55,66 @@ def test_get_star_ids_from_upload_file():
     star_ids_from_fn = util.get_star_ids_from_upload_file(fullpath)
     assert set(star_ids_read_directly) == set(star_ids_from_fn)
 
+
+def test_class_minidataframe():
+    # Test main constructor failures:
+    d = None
+    assert util.MiniDataFrame(d).dict is None
+    d = 'x'  # not a dict
+    assert util.MiniDataFrame(d).dict is None
+    d = ['x']  # not a dict
+    assert util.MiniDataFrame(d).dict is None
+    d = {'x'}  # a set, not a dict
+    assert util.MiniDataFrame(d).dict is None
+    d = {}  # no keys
+    assert util.MiniDataFrame(d).dict is None
+    d = {'a': [1, 2], 'b': 'x'}  # 2nd value not a list
+    assert util.MiniDataFrame(d).dict is None
+    d = {'a': [1, 2], 'b': ['x']}  # lists of unequal length
+    assert util.MiniDataFrame(d).dict is None
+
+    # Test valid construction from dict/OrderedDict & methods.
+    d = {'a': [1, 2, 3], 'b': ['x', 'y', 'z']}
+    mdf = util.MiniDataFrame(d)
+    assert mdf.ncol() == 2
+    assert mdf.len() == 3
+    assert set(mdf.column_names()) == {'a', 'b'}
+    assert mdf.column('a') == [1, 2, 3]
+
+    # Test .set_column():
+    d = {'a': [1, 2, 3], 'b': ['x', 'y', 'z']}
+    mdf = util.MiniDataFrame(d)
+    mdf.set_column('new', [6, 7, 8])
+    assert set(mdf.column_names()) == {'a', 'b', 'new'}
+    assert mdf.column('a') == [1, 2, 3]
+    assert mdf.column('new') == [6, 7, 8]
+    mdf.set_column('a', [66, 77, 88])
+    assert set(mdf.column_names()) == {'a', 'b', 'new'}
+    assert mdf.column('a') == [66, 77, 88]
+    assert mdf.column('new') == [6, 7, 8]
+
+    # Test .row_subset():
+    d = {'a': [1, 2, 3, 4, 5], 'b': ['x', 'y', 'z', 'zz', 'zzz']}
+    mdf = util.MiniDataFrame(d)
+    selection = [len(item) <= 1 for item in mdf.column('b')]
+    assert selection == [True, True, True, False, False]
+    mdf2 = mdf.row_subset(selection)
+    assert set(mdf.column_names()) == set(mdf2.column_names())
+    assert mdf2.column('a') == [1, 2, 3]
+    assert mdf2.column('b') == ['x', 'y', 'z']
+
+    # Test .to_float():
+    d = {'a': ['1.1', 2, '', 'x', '5'], 'b': ['x', 'y', 'z', 'zz', 'zzz']}
+    mdf = util.MiniDataFrame(d)
+    col_a = mdf.column('a')
+    assert col_a[0] != 1.1
+    assert col_a[1] == 2.0
+    assert col_a[4] != 5.0
+    mdf.to_float('a')
+    col_a = mdf.column('a')
+    is_nan = [isnan(x) for x in col_a]
+    assert is_nan == [False, False, True, True, False]
+    assert col_a[0] == 1.1
+    assert col_a[1] == 2.0
+    assert col_a[4] == 5.0
+    assert mdf.column('b') == ['x', 'y', 'z', 'zz', 'zzz']

@@ -30,7 +30,7 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
          Web access built with python's built-in packages urllib and webbrowser.
          Data cacheing built with python's built-in package functools.     
          Plotting built with package matplotlib v 2.0.2.
-         Data management (series and dataframes) built with package pandas 0.20.3.
+         [pandas dependence removed Sept 7 2018 in favor of local 'MiniDataFrame' class.]
      This pylcg version: 0.1 BETA, September 6, 2018.
      Eric Dose, Albuquerque, New Mexico, USA
 """
@@ -38,17 +38,23 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', 'CV', 'CR', 'CBB',
              'SZ', 'SU', 'SG', 'SR', 'SI', 'STU', 'STV', 'STB', 'STY', 'STHBW', 'STHBN',
              'MA', 'MB', 'MI', 'ZS', 'Y', 'HA', 'HAC']
-PYLCG_LOGO = 'pylcg v0.1'
+BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
+
+PYLCG_LOGO = 'pylcg v0.11' + BETA_CHARACTER
 PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'for local testing only'
+PYLCG_SUB_LOGO = 'for testing only'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
-PYLCG_VERSION = '0.1 BETA'
-PYLCG_VERSION_DATE = 'September 6, 2018'
+
+PYLCG_VERSION = '0.11 BETA'
+PYLCG_VERSION_DATE = 'September 7, 2018'
+
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
 ABOUT_AUTHOR = 'Made in Albuquerque, New Mexico, USA\n'\
                'by Eric Dose, for the AAVSO.\n'
 ABOUT_AUTHOR_FONT = ('verdana', 7, 'italic')
+
+
 
 
 class ApplicationPylcg(tk.Tk):
@@ -441,10 +447,12 @@ class ApplicationPylcg(tk.Tk):
             else:
                 num_days = None
         if must_get_obs_data:
-            self.df_obs_data = web.get_vsx_obs(star_id=star_id,
-                                               jd_start=jd_start, jd_end=jd_end, num_days=num_days)
+            self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
+                                                jd_start=jd_start, jd_end=jd_end, num_days=num_days)
+            # self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
+            #                                    jd_start=jd_start, jd_end=jd_end, num_days=num_days)
         # print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
-        plotter.redraw_plot(self.canvas, self.df_obs_data, star_id, bands_to_plot=self.bands_to_plot,
+        plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=num_days)
 

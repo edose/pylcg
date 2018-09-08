@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
-
 from collections import OrderedDict   # OrderedDict removes duplicates while preserving order
 #                                       (NB: in py 3.7+, native python dictionaries will do this too.)
+import csv
+import urllib.request
+from math import nan
+
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -66,13 +69,11 @@ class UnequalLengthError(Error):
 
 class MiniDataFrame:
     """  Tiny subset of pandas DataFrame facility. Holds a dict of equal-length lists.
-
-
     """
-    def __init__(self, dict_of_lists):
-        self.dict = dict_of_lists
+    def __init__(self, dict_of_lists=None):
+        self.dict = dict_of_lists  # even if is None.
         # Verify is a dict or OrderedDict:
-        if (not isinstance(dict_of_lists, dict)) or (not isinstance(dict_of_lists, OrderedDict)):
+        if (not isinstance(dict_of_lists, dict)) and (not isinstance(dict_of_lists, OrderedDict)):
             self.dict = None
         # Verify dict has keys:
         if self.dict is not None:
@@ -94,39 +95,72 @@ class MiniDataFrame:
                     break
         # Here, self.dict is either valid or None.
 
-    def column(self, column_name):
-        """  Return list. """
-        return self.dict[column_name]
+    def ncol(self):
+        """  Return number of columns."""
+        return len(self.column_names())
 
     def len(self):
         """  Return length of lists, similar to pandas.DataFrame.len()."""
-        return len(self.dict[self.dict.keys()[0]])
+        return len(self.dict[list(self.dict.keys())[0]])
 
     def column_names(self):
         """  Return list of column names."""
         return list(self.dict.keys())
 
-    def ncol(self):
-        """  Return number of columns."""
-        return len(self.column_names())
+    def column(self, column_name):
+        """  Return list of values in this column. """
+        return self.dict[column_name]
 
     def set_column(self, new_column_name, new_list):
         """  Add or replace column with new_list.
         :param new_column_name: column name to add or replace [string]
         :param new_list: value for new column [list].
-        :return:
+        :return: No return; changes this MiniDataFrame object in-place.
         """
-        if len(new_list) != self.dict.len():
+        if len(new_list) != self.len():
             raise UnequalLengthError
         else:
             self.dict[new_column_name] = new_list.copy()
 
-    def from_url(self, url):
+    def to_float(self, column_name):
+        """  Convert one column's data into floats; if not possible make value math.nan.
+        :param column_name: name of column to convert to floats [string].
+        :return: No return; changes this MiniDataFrame object in-place.
+        """
+        floats = []
+        for x in self.column(column_name):
+            try:
+                float_x = float(x)
+            except ValueError:
+                float_x = nan
+            floats.append(float_x)
+        self.dict[column_name] = floats
+
+    @staticmethod
+    def from_url(url, delimiter):
         """  Constructor: read data from url, parse into MiniDataFrame object, and return it.
-        :param url: URL from which to get data.
+        :param url: URL from which to get data [string].
+        :param delimiter: delimiter to use in making request [1-character string].
         :return: newly constructed object [MiniDataFrame object].
         """
-        pass
+        # get nested list of data from URL:
+        byte_text = urllib.request.urlopen(url)
+        text = [line.decode('utf-8') for line in byte_text]
+        reader = csv.reader(text, delimiter=delimiter)
+        data = [row for row in reader]
+        # return data
+        # Now, parse nested list into a dict:
+        this_dict = dict()
+        if len(data) == 0:
+            return None
+        column_names = []
+        for column_name in data[0]:
+            column_names.append(column_name)
+            this_dict[column_name] = []
+        for row in data[1:]:
+            for i_col, column_name in enumerate(column_names):
+                this_dict[column_name].append(row[i_col])
+        return MiniDataFrame(this_dict)
 
     def row_subset(self, boolean_list):
         """  Return new MiniDataFrame object with rows selected by boolean_list; rows are copies.
@@ -134,4 +168,11 @@ class MiniDataFrame:
             length must equal length of this MiniDataFrame.
         :return: subset MiniDataFrame [MiniDataFrame object].
         """
-        pass
+        if len(boolean_list) != self.len():
+            return None
+        new_dict = OrderedDict()
+        for column_name in self.column_names():
+            zipped = zip(self.column(column_name), boolean_list)
+            new_list = [item for (item, boolean) in zipped if boolean is True]
+            new_dict[column_name] = new_list
+        return MiniDataFrame(new_dict)
