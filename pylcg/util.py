@@ -59,6 +59,67 @@ def get_star_ids_from_upload_file(filename):
     return star_ids
 
 
+class TargetList:
+    """  List of targets to service the Target 'Prev' and 'Next' buttons [list of strings]."""
+    def __init__(self, target_or_list=None):
+        self.targets = []
+        self.pointer = None
+        if target_or_list is not None:
+            if isinstance(target_or_list, str):
+                self.add([target_or_list])  # handling python's pitiful str/list confusions.
+            else:
+                self.add(target_or_list)
+
+    def n(self):
+        return len(self.targets)
+
+    def is_empty(self):
+        return self.n() <= 0
+
+    def add(self, target_or_list=None):
+        if target_or_list is None:
+            return
+        # Ensure that target(s) comprise a list:
+        if isinstance(target_or_list, str):
+            new_targets = [target_or_list]  # handling python's pitiful str/list confusions.
+        elif isinstance(target_or_list, list):
+            if len(target_or_list) == 0:
+                return
+            new_targets = target_or_list
+        else:
+            return
+        # Insert the list:
+        if self.is_empty():
+            # Add new targets and point to first one:
+            self.targets.extend(new_targets)
+            self.pointer = 0
+        else:
+            # Insert all new targets and point to first one:
+            self.targets = self.targets[:self.pointer + 1] + new_targets + self.targets[self.pointer + 1:]
+            self.pointer += 1
+
+    def prev(self):
+        if self.is_empty() or self.pointer is None:
+            return None
+        if not (0 < self.pointer <= self.n() - 1):
+            return None
+        self.pointer -= 1
+        return self.targets[self.pointer]
+
+    def next(self):
+        if self.is_empty() or self.pointer is None:
+            return None
+        if not (0 <= self.pointer < self.n() - 1):
+            return None
+        self.pointer += 1
+        return self.targets[self.pointer]
+
+    def current(self):
+        if self.is_empty() or self.pointer is None:
+            return None
+        return self.targets[self.pointer]
+
+
 class Error(Exception):
     pass
 

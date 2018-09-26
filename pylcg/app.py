@@ -16,7 +16,7 @@ import tkinter.messagebox as tkm
 import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
-from pylcg.util import jd_now
+from pylcg.util import jd_now, MiniDataFrame
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -169,11 +169,12 @@ class ApplicationPylcg(tk.Tk):
         control_subframe1.grid(row=1, column=0, sticky=tk.N)
         control_subframe1.grid_columnconfigure(0, weight=1)
         control_subframe1.grid_columnconfigure(1, weight=1)
-        # Star labelframe:
+
+        # ----- Star labelframe:
         star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=8)
         star_labelframe.grid(pady=15, sticky='ew')
         self.star_entered = tk.StringVar()
-        self.star_entered.set('please enter Star ID here')  # dummy star just to get started.
+        self.star_entered.set('')
         # self.this_star.trace("w", lambda name, index, mode: print(self.star_entered.get()))
         self.star_entry = ttk.Entry(star_labelframe, textvariable=self.star_entered)
         self.star_entry.grid(row=0, columnspan=2, sticky='ew')
@@ -190,7 +191,8 @@ class ApplicationPylcg(tk.Tk):
         self.button_next.grid(row=2, column=1, sticky='w')
         self.button_prev.config(state='disabled')  # For now
         self.button_next.config(state='disabled')  # For now
-        # Time span labelframe:
+
+        # ----- Time span labelframe:
         timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span ', padx=10, pady=8)
         timespan_labelframe.grid(pady=15, sticky='ew')
         timespan_labelframe.grid_columnconfigure(1, weight=1)
@@ -220,7 +222,7 @@ class ApplicationPylcg(tk.Tk):
         use_now_button = ttk.Button(timespan_labelframe, text='JD End = Now', command=self._use_now)
         use_now_button.grid(row=3, column=1, columnspan=2, sticky='ew')
 
-        # Bands labelframe:
+        # ----- Bands labelframe:
         self.bands_labelframe = tk.LabelFrame(control_subframe1, text=' Bands ', padx=15, pady=10)
         self.bands_labelframe.grid(pady=10, sticky='ew')
         self.bands_labelframe.grid_columnconfigure(0, weight=1)
@@ -280,21 +282,33 @@ class ApplicationPylcg(tk.Tk):
         self.band_others_checkbutton.grid(row=2, column=1, sticky='w')
         self.band_all_checkbutton.grid(row=4, column=1, sticky='w')
 
+        # ----- Checkbutton frame:
         checkbutton_frame = tk.Frame(control_subframe1)
         checkbutton_frame.grid(sticky='ew')
         self.grid_flag = tk.BooleanVar()
         self.errorbar_flag = tk.BooleanVar()
+        self.lessthan_flag = tk.BooleanVar()
         self.grid_flag.set(True)
         self.errorbar_flag.set(True)
+        self.lessthan_flag.set(False)
         self.grid_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(), True))
         self.errorbar_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(),
+                                                                                True))
+        self.lessthan_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(),
                                                                                 True))
         grid_checkbutton = ttk.Checkbutton(checkbutton_frame, text='grid', variable=self.grid_flag)
         errorbars_checkbutton = ttk.Checkbutton(checkbutton_frame, text='error bars',
                                                 variable=self.errorbar_flag)
+        lessthan_checkbutton = ttk.Checkbutton(checkbutton_frame, text='less-than obs',
+                                               variable=self.lessthan_flag)
+
         grid_checkbutton.grid(row=0, column=0, sticky='w')
         errorbars_checkbutton.grid(row=1, column=0, sticky='w')
+        lessthan_checkbutton.grid(row=0, column=1, sticky='w')
 
+        self.mdf_obs_data = MiniDataFrame()  # declare here, as will be depended upon later.
+
+        # ----- Button frame:
         button_frame = tk.Frame(control_subframe1, pady=12)
         button_frame.grid(sticky='ew')
         button_frame.grid_columnconfigure(0, weight=1)
@@ -307,14 +321,18 @@ class ApplicationPylcg(tk.Tk):
                                 command=lambda: web.webbrowse_vsx(self.star_entered.get()))
         button_webobs = ttk.Button(button_frame, text='Observations',
                                    command=lambda: web.webbrowse_webobs(self.star_entered.get()))
+        button_clearcache = ttk.Button(button_frame, text='Clear cache',
+                                       command=web.get_vsx_obs.cache_clear)
         button_preferences.grid(row=0, column=0, sticky='ew')
         button_listobservers.grid(row=1, column=0, sticky='ew')
         button_vsx.grid(row=0, column=1, sticky='ew')
         button_webobs.grid(row=1, column=1, sticky='ew')
+        button_clearcache.grid(row=2, column=1, sticky='ew')
         button_preferences.state(['disabled'])
         button_listobservers.state(['disabled'])
         button_vsx.state(['!disabled'])  # enabled
         button_webobs.state(['!disabled'])  # enabled
+        button_clearcache.state(['!disabled'])  # enabled
 
         # Subframe quit_frame:
         quit_frame = tk.Frame(self.control_frame, height=60)
@@ -436,6 +454,8 @@ class ApplicationPylcg(tk.Tk):
         """
         self._update_bands_to_plot()  # ensure sync with checkbuttons.
         self.preferences.set('Data preferences', 'bands', self.bands_to_plot)  # ensure bands are stored.
+        if star_id.strip() == '':
+            return
         jd_start = None if self.jdstart.get().strip() == '' else float(self.jdstart.get())
         jd_end = None if self.jdend.get().strip() == '' else float(self.jdend.get())
         if self.days_to_plot.get().strip() != '':
@@ -449,11 +469,11 @@ class ApplicationPylcg(tk.Tk):
         if must_get_obs_data:
             self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
                                                 jd_start=jd_start, jd_end=jd_end, num_days=num_days)
-            # self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
-            #                                    jd_start=jd_start, jd_end=jd_end, num_days=num_days)
+        print(web.get_vsx_obs.cache_info())
         # print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
+                            show_lessthans=self.lessthan_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=num_days)
 
 

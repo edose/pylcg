@@ -118,3 +118,79 @@ def test_class_minidataframe():
     assert col_a[1] == 2.0
     assert col_a[4] == 5.0
     assert mdf.column('b') == ['x', 'y', 'z', 'zz', 'zzz']
+
+
+def test_class_targetlist():
+    tl = util.TargetList()
+    assert tl.is_empty() is True
+    assert tl.n() == 0
+    assert tl.current() is None
+    assert tl.next() is None
+    assert tl.prev() is None
+    tl.add('ST Tri')
+    assert tl.n() == 1
+    assert tl.current() == 'ST Tri'
+    assert tl.prev() is None
+    assert tl.current() == 'ST Tri'
+    assert tl.next() is None
+    assert tl.current() == 'ST Tri'
+
+    one_target = 'xyz'
+    tl = util.TargetList(one_target)
+    assert tl.is_empty() is False
+    assert tl.n() == 1
+    assert tl.current() == one_target
+    assert tl.prev() is None
+    assert tl.next() is None
+    tl.add('ST Tri')
+    assert tl.n() == 2
+    assert tl.current() == 'ST Tri'
+    assert tl.prev() == one_target
+    assert tl.current() == one_target
+    assert tl.next() == 'ST Tri'
+    assert tl.current() == 'ST Tri'
+
+    several_targets = ['first', 'a', 'b', 'c', 'd e4', 'last']
+    tl = util.TargetList(several_targets)
+    assert tl.is_empty() is False
+    assert tl.n() == len(several_targets)
+    assert tl.current() == several_targets[0]
+    assert tl.prev() is None
+    assert tl.next() == several_targets[1]
+    assert tl.next() == several_targets[2]
+    tl.add('ST Tri')
+    assert tl.current() is 'ST Tri'
+    assert tl.prev() == several_targets[2]
+    assert tl.prev() == several_targets[1]
+    assert tl.prev() == several_targets[0]
+    assert tl.prev() is None
+    assert tl.current() == several_targets[0]
+    for i in range(len(several_targets)):
+        assert tl.next() == ['first', 'a', 'b', 'ST Tri', 'c', 'd e4', 'last'][i + 1]
+    assert tl.next() is None
+
+    # Pathological cases:
+    # Add an empty list:
+    tl = util.TargetList()
+    tl.add([])
+    assert tl.is_empty()
+    several_targets = ['first', 'a', 'b', 'c', 'd e4', 'last']
+    tl = util.TargetList(several_targets)
+    tl.add([])
+    assert tl.n() == len(several_targets)
+
+    # Add something neither string nor list:
+    tl = util.TargetList(several_targets)
+    tl.add(14)
+    assert tl.n() == len(several_targets)
+    tl.add(16.55)
+    assert tl.n() == len(several_targets)
+
+
+
+
+
+
+
+
+
