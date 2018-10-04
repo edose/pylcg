@@ -42,6 +42,7 @@ def test_jd_from_datetime_utc():
 
 
 def test_get_star_ids_from_upload_file():
+    # Test on valid Extended format upload file:
     # Necessarily this more or less repeats the function, but at least backs up against code corruption.
     filename = 'AAVSOreport-20180813.txt'
     fullpath = os.path.join(TEST_TOP_DIRECTORY, '$data_for_test', filename)
@@ -54,6 +55,18 @@ def test_get_star_ids_from_upload_file():
             star_ids_read_directly.append(line.strip().split(delimiter)[0].strip())
     star_ids_from_fn = util.get_star_ids_from_upload_file(fullpath)
     assert set(star_ids_read_directly) == set(star_ids_from_fn)
+
+    # Test with valid Visual format upload file:
+    filename = 'Visual_upload_1.txt'
+    fullpath = os.path.join(TEST_TOP_DIRECTORY, '$data_for_test', filename)
+    star_ids_from_fn = util.get_star_ids_from_upload_file(fullpath)
+    known_star_ids = ['SS CYG', 'XX XXX']
+    assert set(star_ids_from_fn) == set(known_star_ids)
+
+    # Test with file that is not an upload:
+    filename = 'preferences.ini'
+    fullpath = os.path.join(TEST_TOP_DIRECTORY, '$data_for_test', filename)
+    assert util.get_star_ids_from_upload_file(fullpath) == []
 
 
 def test_class_minidataframe():
@@ -124,50 +137,62 @@ def test_class_targetlist():
     tl = util.TargetList()
     assert tl.is_empty() is True
     assert tl.n() == 0
+    assert tl.prev_exists() is False
+    assert tl.next_exists() is False
     assert tl.current() is None
-    assert tl.next() is None
-    assert tl.prev() is None
+    assert tl.go_next() is None
+    assert tl.go_prev() is None
     tl.add('ST Tri')
     assert tl.n() == 1
+    assert tl.prev_exists() is False
+    assert tl.next_exists() is False
     assert tl.current() == 'ST Tri'
-    assert tl.prev() is None
+    assert tl.go_prev() is None
     assert tl.current() == 'ST Tri'
-    assert tl.next() is None
+    assert tl.go_next() is None
     assert tl.current() == 'ST Tri'
 
     one_target = 'xyz'
     tl = util.TargetList(one_target)
     assert tl.is_empty() is False
     assert tl.n() == 1
+    assert tl.prev_exists() is False
+    assert tl.next_exists() is False
     assert tl.current() == one_target
-    assert tl.prev() is None
-    assert tl.next() is None
+    assert tl.go_prev() is None
+    assert tl.go_next() is None
     tl.add('ST Tri')
     assert tl.n() == 2
+    assert tl.prev_exists() is True
+    assert tl.next_exists() is False
     assert tl.current() == 'ST Tri'
-    assert tl.prev() == one_target
+    assert tl.go_prev() == one_target
     assert tl.current() == one_target
-    assert tl.next() == 'ST Tri'
+    assert tl.go_next() == 'ST Tri'
     assert tl.current() == 'ST Tri'
 
     several_targets = ['first', 'a', 'b', 'c', 'd e4', 'last']
     tl = util.TargetList(several_targets)
     assert tl.is_empty() is False
     assert tl.n() == len(several_targets)
+    assert tl.prev_exists() is False
+    assert tl.next_exists() is True
     assert tl.current() == several_targets[0]
-    assert tl.prev() is None
-    assert tl.next() == several_targets[1]
-    assert tl.next() == several_targets[2]
+    assert tl.go_prev() is None
+    assert tl.go_next() == several_targets[1]
+    assert tl.go_next() == several_targets[2]
     tl.add('ST Tri')
     assert tl.current() is 'ST Tri'
-    assert tl.prev() == several_targets[2]
-    assert tl.prev() == several_targets[1]
-    assert tl.prev() == several_targets[0]
-    assert tl.prev() is None
+    assert tl.go_prev() == several_targets[2]
+    assert tl.go_prev() == several_targets[1]
+    assert tl.go_prev() == several_targets[0]
+    assert tl.go_prev() is None
     assert tl.current() == several_targets[0]
     for i in range(len(several_targets)):
-        assert tl.next() == ['first', 'a', 'b', 'ST Tri', 'c', 'd e4', 'last'][i + 1]
-    assert tl.next() is None
+        assert tl.go_next() == ['first', 'a', 'b', 'ST Tri', 'c', 'd e4', 'last'][i + 1]
+    assert tl.prev_exists() is True
+    assert tl.next_exists() is False
+    assert tl.go_next() is None
 
     # Pathological cases:
     # Add an empty list:

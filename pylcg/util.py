@@ -37,19 +37,35 @@ def jd_now():
     return jd_from_datetime_utc(datetime.now(timezone.utc))
 
 
-def get_star_ids_from_upload_file(filename):
+def get_star_ids_from_upload_file(fullpath):
     """  Get and return all star ids from a given WebObs upload text file.
-    :param filename: upload text file name [string].
+    :param fullpath: upload text file name [string].
     :return: list of all star IDs, no duplicates, preserving order found in file [list of strings].
     """
-    with open(filename) as f:
-        lines = f.readlines()
+    try:
+        with open(fullpath) as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return list()
 
-    # Get delimiter:
+    # Ensure file declares itself to be either Extended or Visual format:
+    type_line_found = False
+    for line in lines:
+        if line.upper().startswith('#TYPE='):
+            type_line_found = True
+            type_string = line.split('=')[1].strip()
+            if type_string.upper() not in ['EXTENDED', 'VISUAL']:
+                return list()
+    if not type_line_found:
+        return list()
+
+    # Get delimiter, comma as default:
     delimiter = ','  # default if #DELIM line not found.
     for line in lines:
         if line.upper().startswith('#DELIM='):
-            delimiter = line.split('=')[1].strip()  # this doesn't yet handle 'comma', etc
+            delimiter = line.split('=')[1].strip()
+            if delimiter.lower() == 'comma':
+                delimiter = ','
             break
 
     # Extract and return star_ids:
@@ -98,18 +114,28 @@ class TargetList:
             self.targets = self.targets[:self.pointer + 1] + new_targets + self.targets[self.pointer + 1:]
             self.pointer += 1
 
-    def prev(self):
+    def prev_exists(self):
         if self.is_empty() or self.pointer is None:
-            return None
+            return False
         if not (0 < self.pointer <= self.n() - 1):
+            return False
+        return True
+
+    def next_exists(self):
+        if self.is_empty() or self.pointer is None:
+            return False
+        if not (0 <= self.pointer < self.n() - 1):
+            return False
+        return True
+
+    def go_prev(self):
+        if not self.prev_exists():
             return None
         self.pointer -= 1
         return self.targets[self.pointer]
 
-    def next(self):
-        if self.is_empty() or self.pointer is None:
-            return None
-        if not (0 <= self.pointer < self.n() - 1):
+    def go_next(self):
+        if not self.next_exists():
             return None
         self.pointer += 1
         return self.targets[self.pointer]

@@ -12,11 +12,12 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as tkm
+from tkinter import filedialog
 
 import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
-from pylcg.util import jd_now, MiniDataFrame
+from pylcg.util import jd_now, MiniDataFrame, TargetList, get_star_ids_from_upload_file
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -78,6 +79,8 @@ class ApplicationPylcg(tk.Tk):
         display_frame = self.subdivide_main_frame()
 
         plot_frame, toolbar_frame = self.subdivide_display_frame(display_frame)
+
+        self.target_list = TargetList()
 
         # Assign matplotlib scatter plot to plot frame:
         fig = Figure(figsize=(10.24, 7.20), dpi=100)
@@ -173,22 +176,24 @@ class ApplicationPylcg(tk.Tk):
         # ----- Star labelframe:
         star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=8)
         star_labelframe.grid(pady=15, sticky='ew')
+        self.button_stars_from_upload = ttk.Button(star_labelframe, text='From upload file',
+                                                   command=self._add_upload_star_ids)
+        self.button_stars_from_upload.grid(row=0, column=0, columnspan=2, sticky='e')
         self.star_entered = tk.StringVar()
         self.star_entered.set('')
         # self.this_star.trace("w", lambda name, index, mode: print(self.star_entered.get()))
         self.star_entry = ttk.Entry(star_labelframe, textvariable=self.star_entered)
-        self.star_entry.grid(row=0, columnspan=2, sticky='ew')
+        self.star_entry.grid(row=1, columnspan=2, sticky='ew')
         self.button_plot_this_star = ttk.Button(star_labelframe, text='Plot this star',
-                                                command=lambda: self._plot_star(self.star_entered.get(),
-                                                                                True))
-        self.button_plot_this_star.grid(row=1, column=0, columnspan=2, sticky='ew')
+                                                command=lambda: self._entered_star(self.star_entered.get()))
+        self.button_plot_this_star.grid(row=2, column=0, columnspan=2, sticky='ew')
         self.star_entry.bind('<Return>', lambda d: self.button_plot_this_star.invoke())
         self.prev_star = tk.StringVar()  # reserve name for label, later.
         self.button_prev = ttk.Button(star_labelframe, text='Prev', command=self._prev_star)
-        self.button_prev.grid(row=2, column=0, sticky='e')
+        self.button_prev.grid(row=3, column=0, sticky='e')
         self.next_star = tk.StringVar()  # reserve name for label, later.
         self.button_next = ttk.Button(star_labelframe, text='Next', command=self._next_star)
-        self.button_next.grid(row=2, column=1, sticky='w')
+        self.button_next.grid(row=3, column=1, sticky='w')
         self.button_prev.config(state='disabled')  # For now
         self.button_next.config(state='disabled')  # For now
 
@@ -291,11 +296,12 @@ class ApplicationPylcg(tk.Tk):
         self.grid_flag.set(True)
         self.errorbar_flag.set(True)
         self.lessthan_flag.set(False)
-        self.grid_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(), True))
-        self.errorbar_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(),
-                                                                                True))
-        self.lessthan_flag.trace("w", lambda name, index, mode: self._plot_star(self.star_entered.get(),
-                                                                                True))
+        self.grid_flag.trace("w", lambda name, index,
+                                         mode: self._entered_star(self.target_list.current()))
+        self.errorbar_flag.trace("w", lambda name, index,
+                                             mode: self._entered_star(self.target_list.current()))
+        self.lessthan_flag.trace("w", lambda name, index,
+                                             mode: self._entered_star(self.target_list.current()))
         grid_checkbutton = ttk.Checkbutton(checkbutton_frame, text='grid', variable=self.grid_flag)
         errorbars_checkbutton = ttk.Checkbutton(checkbutton_frame, text='error bars',
                                                 variable=self.errorbar_flag)
@@ -401,21 +407,53 @@ class ApplicationPylcg(tk.Tk):
             self.quit()     # stop mainloop
             self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
+    def _add_upload_star_ids(self):
+        # tk.Tk.withdraw()
+        self.update()
+        # TODO: Add initialdir= option when it's added to preferences.
+        fullpath = filedialog.askopenfilename(filetypes=(("Text File", "*.txt"), ("All Files", "*.*")),
+                                              title="Choose an upload file.")
+        self.update()
+        new_star_ids = get_star_ids_from_upload_file(fullpath)
+        if len(new_star_ids) >= 1:
+            self.target_list.add(new_star_ids)
+            # TODO: Add popup of # star ids added.
+            self.star_entered.set(self.target_list.current())
+            self.button_prev.config(state=(tk.NORMAL if self.target_list.prev_exists() else tk.DISABLED))
+            self.button_next.config(state=(tk.NORMAL if self.target_list.next_exists() else tk.DISABLED))
+            if self.target_list.current() is not None:
+                self._plot_star(self.target_list.current(), True)
+        else:
+            # TODO: Add popup 'No stars found in file [fullpath].'
+            iii = 3
+
+    def _entered_star(self, star_id):
+        if self.target_list.current() is None:
+            if star_id is not None:
+                self.target_list.add(star_id)
+        else:
+            if self.target_list.current().lower().strip() != star_id.lower().strip():
+                self.target_list.add(star_id)
+        self.button_prev.config(state=(tk.NORMAL if self.target_list.prev_exists() else tk.DISABLED))
+        self.button_next.config(state=(tk.NORMAL if self.target_list.next_exists() else tk.DISABLED))
+        if self.target_list.current() is not None:
+            self._plot_star(star_id, True)
+
     def _prev_star(self):
-        """  Postponed until version 0.2 BETA. """
-        print('Prev was pressed.')
-        self.i_star = max(0, self.i_star - 1)
-        self.button_prev.config(state=(tk.DISABLED if self.i_star == 0 else tk.NORMAL))
-        self.button_next.config(state=(tk.DISABLED if self.i_star >= len(self.star_ids) - 1 else tk.NORMAL))
-        self._plot_star(self.star_ids[self.i_star])
+        if self.target_list.prev_exists():
+            star_id = self.target_list.go_prev()
+            self.star_entered.set(star_id)
+            self._plot_star(star_id)
+        self.button_prev.config(state=(tk.NORMAL if self.target_list.prev_exists() else tk.DISABLED))
+        self.button_next.config(state=(tk.NORMAL if self.target_list.next_exists() else tk.DISABLED))
 
     def _next_star(self):
-        """  Postponed until version 0.2 BETA. """
-        print('Next was pressed.')
-        self.i_star = min(len(self.star_ids) - 1, self.i_star + 1)
-        self.button_prev.config(state=(tk.DISABLED if self.i_star == 0 else tk.NORMAL))
-        self.button_next.config(state=(tk.DISABLED if self.i_star >= len(self.star_ids) - 1 else tk.NORMAL))
-        self._plot_star(self.star_ids[self.i_star])
+        if self.target_list.next_exists():
+            star_id = self.target_list.go_next()
+            self.star_entered.set(star_id)
+            self._plot_star(star_id)
+        self.button_prev.config(state=(tk.NORMAL if self.target_list.prev_exists() else tk.DISABLED))
+        self.button_next.config(state=(tk.NORMAL if self.target_list.next_exists() else tk.DISABLED))
 
     def _use_now(self):
         """  Set GUI's End JD entry box to current JD. """
@@ -424,7 +462,9 @@ class ApplicationPylcg(tk.Tk):
     def _update_bands_to_plot_then_plot(self):
         """  Provides a single function call to GUI components as they require. """
         self._update_bands_to_plot()
-        self._plot_star(self.star_entered.get(), False)  # update plot, but data already downloaded.
+        if self.target_list.current() is not None:
+            if self.target_list.current().strip() != '':
+                self._plot_star(self.target_list.current())  # update plot, but data already downloaded.
 
     def _update_bands_to_plot(self):
         """  Memorizes band checkbutton seetings before use in plotting.
@@ -469,7 +509,7 @@ class ApplicationPylcg(tk.Tk):
         if must_get_obs_data:
             self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
                                                 jd_start=jd_start, jd_end=jd_end, num_days=num_days)
-        print(web.get_vsx_obs.cache_info())
+        # print(web.get_vsx_obs.cache_info())
         # print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
