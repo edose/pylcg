@@ -37,6 +37,58 @@ def jd_now():
     return jd_from_datetime_utc(datetime.now(timezone.utc))
 
 
+def jd_from_mmddyyyy(date_string):
+    """  Get Julian Date from US-format date string.
+    :param date_string: US-format UTC date mm/dd/yyyy, e.g. '12/01/2018' (string).
+    :return: Julian Date corresponding to date_string (at 00:00:00 UTC).
+    """
+    substrings = date_string.split('/')
+    if len(substrings) != 3:
+        return None
+    try:
+        terms = [int(s) for s in substrings]  # list of integers representing month, day, year
+        this_date = datetime(terms[2], terms[0], terms[1], 0, 0, 0).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return jd_from_datetime_utc(this_date)
+
+
+def jd_from_ddmmyyyy(date_string):
+    """  Get Julian Date from European-format date string.
+    :param date_string: European-format UTC date dd-mm-yyyy or dd.mm.yyyy,
+               e.g. '01-20-2018' or '01.20.2018' (string).
+    :return: Julian Date corresponding to date_string (at 00:00:00 UTC).
+    """
+    substrings = date_string.split('-')
+    if len(substrings) != 3:
+        substrings = date_string.split('.')
+        if len(substrings) != 3:
+            return None
+    try:
+        terms = [int(s) for s in substrings]  # list of integers representing month, day, year
+        this_date = datetime(terms[2], terms[1], terms[0], 0, 0, 0).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return jd_from_datetime_utc(this_date)
+
+
+def jd_from_any_date_string(date_string):
+    """  Parse any legit date string (US, Euro, or JD format), return Julian Date.
+    :param date_string: Any legit date in US, Euro, or JD format (string).
+    :return: Julian Date (float), or None if error.
+    """
+    try:
+        jd = float(date_string)
+    except ValueError:
+        jd = None
+    if jd is not None:  # is a Julian Date.
+        return jd
+    jd = jd_from_mmddyyyy(date_string)
+    if jd is not None:  # is a US-format date.
+        return jd
+    return jd_from_ddmmyyyy(date_string)  # is a European-format date, or None if altogether invalid.
+
+
 def get_star_ids_from_upload_file(fullpath):
     """  Get and return all star ids from a given WebObs upload text file.
     :param fullpath: upload text file name [string].
@@ -87,12 +139,14 @@ class TargetList:
                 self.add(target_or_list)
 
     def n(self):
+        """  Return number of entries."""
         return len(self.targets)
 
     def is_empty(self):
         return self.n() <= 0
 
     def add(self, target_or_list=None):
+        """  Add a target (string) or target list after current position."""
         if target_or_list is None:
             return
         # Ensure that target(s) comprise a list:
@@ -115,6 +169,7 @@ class TargetList:
             self.pointer += 1
 
     def prev_exists(self):
+        """  Return True iff there exists a target just before current position. """
         if self.is_empty() or self.pointer is None:
             return False
         if not (0 < self.pointer <= self.n() - 1):
@@ -122,6 +177,7 @@ class TargetList:
         return True
 
     def next_exists(self):
+        """  Return True iff there exists a target just after current position. """
         if self.is_empty() or self.pointer is None:
             return False
         if not (0 <= self.pointer < self.n() - 1):
@@ -129,18 +185,21 @@ class TargetList:
         return True
 
     def go_prev(self):
+        """  Go to next position, and return target found there. """
         if not self.prev_exists():
             return None
         self.pointer -= 1
         return self.targets[self.pointer]
 
     def go_next(self):
+        """  Go to previous position, and return target found there. """
         if not self.next_exists():
             return None
         self.pointer += 1
         return self.targets[self.pointer]
 
     def current(self):
+        """  Return target at current position. """
         if self.is_empty() or self.pointer is None:
             return None
         return self.targets[self.pointer]

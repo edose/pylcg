@@ -17,7 +17,8 @@ from tkinter import filedialog
 import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
-from pylcg.util import jd_now, MiniDataFrame, TargetList, get_star_ids_from_upload_file
+from pylcg.util import jd_now, MiniDataFrame, TargetList, get_star_ids_from_upload_file, \
+    jd_from_any_date_string, jd_from_datetime_utc
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -41,13 +42,13 @@ ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', '
              'MA', 'MB', 'MI', 'ZS', 'Y', 'HA', 'HAC']
 BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
-PYLCG_LOGO = 'pylcg v0.11' + BETA_CHARACTER
+PYLCG_LOGO = 'pylcg v0.2' + BETA_CHARACTER
 PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'for testing only'
+PYLCG_SUB_LOGO = 'October 11 2018'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
-PYLCG_VERSION = '0.11 BETA'
-PYLCG_VERSION_DATE = 'September 7, 2018'
+PYLCG_VERSION = '0.2 BETA'
+PYLCG_VERSION_DATE = 'October 11, 2018'
 
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
@@ -55,7 +56,14 @@ ABOUT_AUTHOR = 'Made in Albuquerque, New Mexico, USA\n'\
                'by Eric Dose, for the AAVSO.\n'
 ABOUT_AUTHOR_FONT = ('verdana', 7, 'italic')
 
+EMPTY_MARK = '-'
+VALID_MARK = '\u2714'  # unicode 'heavy check mark'
+INVALID_MARK = '\u2718'  # unicode 'heavy ballot X'
+VALIDITY_TO_MARK = {None: EMPTY_MARK, True: VALID_MARK, False: INVALID_MARK}
+VALIDITY_MARK_FONT = ('consolas', 10, 'bold')
 
+MIN_JD_ALLOWABLE = jd_from_any_date_string('1/1/1800')  # earliest imaginable plot-start date.
+MAX_JD_ALLOWABLE = jd_now() + 1 * 365.25  # latest plot-start date: one year from now.
 
 
 class ApplicationPylcg(tk.Tk):
@@ -161,7 +169,7 @@ class ApplicationPylcg(tk.Tk):
 
         # Subframe 'logo_frame':
         logo_frame = ttk.Frame(self.control_frame)
-        logo_frame.grid(row=0, column=0, padx=20, pady=8)
+        logo_frame.grid(row=0, column=0, padx=10, pady=3)
         label_logo = tk.Label(logo_frame, text='\n' + PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='gray')
         label_logo.grid(sticky='sew')
         label_logo = tk.Label(logo_frame, text=PYLCG_SUB_LOGO, font=PYLCG_SUB_LOGO_FONT, fg='black')
@@ -174,9 +182,9 @@ class ApplicationPylcg(tk.Tk):
         control_subframe1.grid_columnconfigure(1, weight=1)
 
         # ----- Star labelframe:
-        star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=8)
+        star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=6)
         star_labelframe.grid(pady=15, sticky='ew')
-        self.button_stars_from_upload = ttk.Button(star_labelframe, text='From upload file',
+        self.button_stars_from_upload = ttk.Button(star_labelframe, text='From upload file...',
                                                    command=self._add_upload_star_ids)
         self.button_stars_from_upload.grid(row=0, column=0, columnspan=2, sticky='e')
         self.star_entered = tk.StringVar()
@@ -198,33 +206,46 @@ class ApplicationPylcg(tk.Tk):
         self.button_next.config(state='disabled')  # For now
 
         # ----- Time span labelframe:
-        timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span ', padx=10, pady=8)
+        timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span (any 2)', padx=10, pady=8)
         timespan_labelframe.grid(pady=15, sticky='ew')
         timespan_labelframe.grid_columnconfigure(1, weight=1)
         self.days_to_plot = tk.StringVar()
+        self.timestart = tk.StringVar()
+        self.timeend = tk.StringVar()
+        self.days_valid = False
+        self.timestart_valid = False
+        self.timeend_valid = False
+        self.days_flag_label = tk.Label(timespan_labelframe, text=' ', font=VALIDITY_MARK_FONT)
+        self.timestart_flag_label = tk.Label(timespan_labelframe, text=' ', font=VALIDITY_MARK_FONT)
+        self.timeend_flag_label = tk.Label(timespan_labelframe, text=' ', font=VALIDITY_MARK_FONT)
+        self.label_background_color = self.timeend_flag_label['bg']  # save this for later use.
+        self.days_to_plot.trace('w', lambda name, index, mode: self._set_time_flags(to_gray=True))
+        self.timestart.trace('w', lambda name, index, mode: self._set_time_flags(to_gray=True))
+        self.timeend.trace('w', lambda name, index, mode: self._set_time_flags(to_gray=True))
         self.days_to_plot.set(self.preferences.get('Data preferences', 'Days'))
+        self.timestart.set('')
+        self.timeend.set('{:20.6f}'.format(jd_now()).strip())
         self.days_entry = ttk.Entry(timespan_labelframe, width=6, justify=tk.RIGHT,
                                     textvariable=self.days_to_plot)
-        self.days_entry.grid(row=0, column=1, sticky='e')
+        self.timestart_entry = ttk.Entry(timespan_labelframe, width=12, justify=tk.RIGHT,
+                                         textvariable=self.timestart)
+        self.timeend_entry = ttk.Entry(timespan_labelframe, width=12, justify=tk.RIGHT,
+                                       textvariable=self.timeend)
         self.days_entry.bind('<Return>', lambda d: self.button_plot_this_star.invoke())
+        self.days_entry.grid(row=0, column=1, sticky='e')
         days_label = tk.Label(timespan_labelframe, text=' days')
         days_label.grid(row=0, column=2)
-
-        jdstart_label = ttk.Label(timespan_labelframe, text='JD Start: ')
-        jdstart_label.grid(row=1, column=0)
-        self.jdstart = tk.StringVar()
-        self.jdstart.set('')
-        self.jdstart_entry = ttk.Entry(timespan_labelframe, width=12, justify=tk.RIGHT,
-                                       textvariable=self.jdstart)
-        self.jdstart_entry.grid(row=1, column=1, columnspan=2, sticky='ew')
-        jdend_label = ttk.Label(timespan_labelframe, text='JD End: ')
-        jdend_label.grid(row=2, column=0)
-        self.jdend = tk.StringVar()
-        self.jdend.set('{:20.6f}'.format(jd_now()).strip())
-        self.jdend_entry = ttk.Entry(timespan_labelframe, width=12, justify=tk.RIGHT,
-                                     textvariable=self.jdend)
-        self.jdend_entry.grid(row=2, column=1, columnspan=2, sticky='ew')
-        use_now_button = ttk.Button(timespan_labelframe, text='JD End = Now', command=self._use_now)
+        self.days_flag_label.grid(row=0, column=3)
+        timestart_label = tk.Label(timespan_labelframe, text='Start: ')
+        timestart_label.grid(row=1, column=0)
+        self.timestart_entry.grid(row=1, column=1, columnspan=2, sticky='ew')
+        self.timestart_flag_label.grid(row=1, column=3)
+        timeend_label = tk.Label(timespan_labelframe, text='End: ')
+        timeend_label.grid(row=2, column=0)
+        self.timeend_entry.grid(row=2, column=1, columnspan=2, sticky='ew')
+        self.timeend_flag_label.grid(row=2, column=3)
+        self._set_time_flags(to_gray=True)  # ensure flags are set before leaving setup.
+        use_now_button = ttk.Button(timespan_labelframe, text='End = now', command=self._use_now)
         use_now_button.grid(row=3, column=1, columnspan=2, sticky='ew')
 
         # ----- Bands labelframe:
@@ -292,25 +313,32 @@ class ApplicationPylcg(tk.Tk):
         checkbutton_frame.grid(sticky='ew')
         self.grid_flag = tk.BooleanVar()
         self.errorbar_flag = tk.BooleanVar()
+        self.plotjd_flag = tk.BooleanVar()
         self.lessthan_flag = tk.BooleanVar()
         self.grid_flag.set(True)
         self.errorbar_flag.set(True)
+        self.plotjd_flag.set(True)
         self.lessthan_flag.set(False)
         self.grid_flag.trace("w", lambda name, index,
                                          mode: self._entered_star(self.target_list.current()))
         self.errorbar_flag.trace("w", lambda name, index,
                                              mode: self._entered_star(self.target_list.current()))
+        self.plotjd_flag.trace("w", lambda name, index,
+                                             mode: self._entered_star(self.target_list.current()))
         self.lessthan_flag.trace("w", lambda name, index,
                                              mode: self._entered_star(self.target_list.current()))
-        grid_checkbutton = ttk.Checkbutton(checkbutton_frame, text='grid', variable=self.grid_flag)
-        errorbars_checkbutton = ttk.Checkbutton(checkbutton_frame, text='error bars',
+        grid_checkbutton = ttk.Checkbutton(checkbutton_frame, text='grid    ', variable=self.grid_flag)
+        errorbars_checkbutton = ttk.Checkbutton(checkbutton_frame, text='error bars    ',
                                                 variable=self.errorbar_flag)
-        lessthan_checkbutton = ttk.Checkbutton(checkbutton_frame, text='less-than obs',
+        plotjd_checkbutton = ttk.Checkbutton(checkbutton_frame, text='plot in JD',
+                                             variable=self.plotjd_flag)
+        lessthan_checkbutton = ttk.Checkbutton(checkbutton_frame, text='less-thans',
                                                variable=self.lessthan_flag)
 
         grid_checkbutton.grid(row=0, column=0, sticky='w')
+        plotjd_checkbutton.grid(row=0, column=1, sticky='w')
         errorbars_checkbutton.grid(row=1, column=0, sticky='w')
-        lessthan_checkbutton.grid(row=0, column=1, sticky='w')
+        lessthan_checkbutton.grid(row=1, column=1, sticky='w')
 
         self.mdf_obs_data = MiniDataFrame()  # declare here, as will be depended upon later.
 
@@ -457,7 +485,7 @@ class ApplicationPylcg(tk.Tk):
 
     def _use_now(self):
         """  Set GUI's End JD entry box to current JD. """
-        self.jdend.set('{:20.6f}'.format(jd_now()).strip())
+        self.timeend.set('{:20.6f}'.format(jd_now()).strip())
 
     def _update_bands_to_plot_then_plot(self):
         """  Provides a single function call to GUI components as they require. """
@@ -486,6 +514,85 @@ class ApplicationPylcg(tk.Tk):
         for band in self.band_flags.keys():
             self.band_flags[band].set(band in self.bands_to_plot)
 
+    def _get_plot_start_end(self):
+        try:
+            num_days = float(self.days_to_plot.get())
+        except ValueError:
+            num_days = None
+        jd_start = jd_from_any_date_string(self.timestart.get())
+        jd_end = jd_from_any_date_string(self.timeend.get())
+
+        if self.timestart_valid and self.timeend_valid:
+            # Use jd_start and jd_end, ignore num_days:
+            self.timestart_flag_label.config(fg='green', bg='#afa')
+            self.timeend_flag_label.config(fg='green', bg='#afa')
+            self.days_flag_label.config(fg='gray', bg=self.label_background_color)
+            return jd_start, jd_end
+        if self.timestart_valid and self.days_valid:
+            # Use jd_start and num_days:
+            self.timestart_flag_label.config(fg='green', bg='#afa')
+            self.timeend_flag_label.config(fg='gray', bg=self.label_background_color)
+            self.days_flag_label.config(fg='green', bg='#afa')
+            return jd_start, jd_start + num_days
+        if self.timeend_valid and self.days_valid:
+            # Use jd_end and num_days:
+            self.timestart_flag_label.config(fg='gray', bg=self.label_background_color)
+            self.timeend_flag_label.config(fg='green', bg='#afa')
+            self.days_flag_label.config(fg='green', bg='#afa')
+            return jd_end - num_days, jd_end
+        # If here, not enough good entries to define time span.
+        self.timestart_flag_label.config(fg='red', bg='#faa')
+        self.timeend_flag_label.config(fg='red', bg='#faa')
+        self.days_flag_label.config(fg='red', bg='#faa')
+        return None, None
+
+    def _set_time_flags(self, to_gray=True):
+        """  Set the check-mark, wrong-mark, or blank flags just to the right of the Time Span items.
+        :param to_gray: True if flag marks to be written in gray (not yet used in a plot) [boolean].
+        :return: [no return]
+        """
+        num_days_entry = self.days_to_plot.get()
+        if num_days_entry.strip() == '':
+            self.days_valid = None
+        else:
+            try:
+                num_days = float(num_days_entry)
+            except ValueError:
+                num_days = None
+            if num_days is None:
+                self.days_valid = False
+            else:
+                self.days_valid = (num_days > 0)  # valid iff positive number.
+        self.days_flag_label['text'] = VALIDITY_TO_MARK[self.days_valid]
+
+        timestart_entry = self.timestart.get()
+        if timestart_entry.strip() == '':
+            self.timestart_valid = None
+        else:
+            jd_start = jd_from_any_date_string(timestart_entry)
+            if jd_start is None:
+                self.timestart_valid = False
+            else:
+                self.timestart_valid = (MIN_JD_ALLOWABLE <= jd_start <= MAX_JD_ALLOWABLE)
+        self.timestart_flag_label['text'] = VALIDITY_TO_MARK[self.timestart_valid]
+
+        timeend_entry = self.timeend.get()
+        if timeend_entry.strip() == '':
+            self.timeend_valid = None
+        else:
+            jd_end = jd_from_any_date_string(timeend_entry)
+            if jd_end is None:
+                self.timeend_valid = False
+            else:
+                # TODO: check > (jd_start if not None).
+                self.timeend_valid = (MIN_JD_ALLOWABLE <= jd_end <= MAX_JD_ALLOWABLE)
+        self.timeend_flag_label['text'] = VALIDITY_TO_MARK[self.timeend_valid]
+
+        if to_gray is True:
+            self.days_flag_label.config(fg='gray', bg=self.label_background_color)
+            self.timestart_flag_label.config(fg='gray', bg=self.label_background_color)
+            self.timeend_flag_label.config(fg='gray', bg=self.label_background_color)
+
     def _plot_star(self, star_id, must_get_obs_data=True):
         """  Assembles required data, and passes it to module plot.py, which does makes the plot.
         :param star_id: ID of star to plot, read from GUI entry box.
@@ -496,25 +603,18 @@ class ApplicationPylcg(tk.Tk):
         self.preferences.set('Data preferences', 'bands', self.bands_to_plot)  # ensure bands are stored.
         if star_id.strip() == '':
             return
-        jd_start = None if self.jdstart.get().strip() == '' else float(self.jdstart.get())
-        jd_end = None if self.jdend.get().strip() == '' else float(self.jdend.get())
-        if self.days_to_plot.get().strip() != '':
-            num_days = float(self.days_to_plot.get().strip())
-        else:
-            if jd_end is None:
-                self.days_to_plot.set(self.preferences.default_config('Data preferences', 'days'))
-                num_days = float(self.days_to_plot.get())
-            else:
-                num_days = None
+        jd_start, jd_end = self._get_plot_start_end()
+        if (jd_start is None) or (jd_end is None):
+            return
         if must_get_obs_data:
             self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
-                                                jd_start=jd_start, jd_end=jd_end, num_days=num_days)
-        # print(web.get_vsx_obs.cache_info())
-        # print('redraw_plot(): ', self.errorbar_flag.get(), self.grid_flag.get())
+                                                jd_start=jd_start, jd_end=jd_end,
+                                                num_days=jd_end - jd_start)
+        # print(web.get_vsx_obs.cache_info())  # show cache hits, number of entries, etc
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             show_lessthans=self.lessthan_flag.get(),
-                            jd_start=jd_start, jd_end=jd_end, num_days=num_days)
+                            jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
 
 
 # ***** Python file entry here. *****

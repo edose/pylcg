@@ -41,6 +41,51 @@ def test_jd_from_datetime_utc():
     assert util.jd_from_datetime_utc(datetime_3) == pytest.approx(2446714.63341273, abs=one_second)
 
 
+def test_jd_from_mmddyyyy():
+    # Normal cases:
+    assert util.jd_from_mmddyyyy('02/04/2018') == \
+           util.jd_from_datetime_utc(datetime(2018, 2, 4).replace(tzinfo=timezone.utc))
+    # Error cases (return None):
+    assert util.jd_from_mmddyyyy('02.04/2018') is None
+    assert util.jd_from_mmddyyyy('04/2018') is None
+    assert util.jd_from_mmddyyyy('00/04/2018') is None
+    assert util.jd_from_mmddyyyy('02/33/2018') is None
+    assert util.jd_from_mmddyyyy('02/3.5/2018') is None
+    assert util.jd_from_mmddyyyy('02/04/-5') is None
+
+
+def test_jd_from_ddmmyyyy():
+    # Normal cases:
+    assert util.jd_from_ddmmyyyy('04-02-2018') == \
+           util.jd_from_datetime_utc(datetime(2018, 2, 4).replace(tzinfo=timezone.utc))
+    assert util.jd_from_ddmmyyyy('04.02.2018') == \
+           util.jd_from_datetime_utc(datetime(2018, 2, 4).replace(tzinfo=timezone.utc))
+    assert util.jd_from_ddmmyyyy('02-04-1915') == \
+           util.jd_from_datetime_utc(datetime(1915, 4, 2).replace(tzinfo=timezone.utc))
+    assert util.jd_from_ddmmyyyy('02-04-1915') == \
+           util.jd_from_datetime_utc(datetime(1915, 4, 2).replace(tzinfo=timezone.utc))
+    # Error cases (return None):
+    assert util.jd_from_ddmmyyyy('02.04/2018') is None
+    assert util.jd_from_ddmmyyyy('04-2018') is None
+    assert util.jd_from_ddmmyyyy('00-04-2018') is None
+    assert util.jd_from_ddmmyyyy('02-33-2018') is None
+    assert util.jd_from_ddmmyyyy('02-3-4-2018') is None
+
+
+def test_jd_from_any_date_string():
+    # Normal cases:
+    assert util.jd_from_any_date_string('04/02/2018') == \
+           util.jd_from_datetime_utc(datetime(2018, 4, 2).replace(tzinfo=timezone.utc))
+    assert util.jd_from_any_date_string('02.04.2018') == \
+           util.jd_from_datetime_utc(datetime(2018, 4, 2).replace(tzinfo=timezone.utc))
+    assert util.jd_from_any_date_string('02-04-2018') == \
+           util.jd_from_datetime_utc(datetime(2018, 4, 2).replace(tzinfo=timezone.utc))
+    # Error cases (return None):
+    assert util.jd_from_any_date_string('13/02/2018') is None
+    assert util.jd_from_any_date_string('04-13-2018') is None
+    assert util.jd_from_any_date_string('04-13-2018') is None
+
+
 def test_get_star_ids_from_upload_file():
     # Test on valid Extended format upload file:
     # Necessarily this more or less repeats the function, but at least backs up against code corruption.
