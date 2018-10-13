@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import OrderedDict   # OrderedDict removes duplicates while preserving order
 #                                       (NB: in py 3.7+, native python dictionaries will do this too.)
 import csv
@@ -28,6 +28,19 @@ def jd_from_datetime_utc(datetime_utc=None):
     jd_j2000 = 2451544.5
     seconds_since_j2000 = (datetime_utc - datetime_j2000).total_seconds()
     return jd_j2000 + seconds_since_j2000 / (24*3600)
+
+
+def datetime_utc_from_jd(jd=None):
+    """  Converts a Julian Date to UTC datetime. Imported from photrix (E. Dose).
+    :param jd: Julian date to be converted [float].
+    :return: UTC datetime from Julian Date [python datetime object].
+    """
+    if jd is None:
+        return datetime.now(timezone.utc)
+    datetime_j2000 = datetime(2000, 1, 1, 0, 0, 0).replace(tzinfo=timezone.utc)
+    jd_j2000 = 2451544.5
+    seconds_since_j2000 = 24 * 3600 * (jd - jd_j2000)
+    return datetime_j2000 + timedelta(seconds=seconds_since_j2000)
 
 
 def jd_now():

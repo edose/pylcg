@@ -1,6 +1,8 @@
 import matplotlib
 matplotlib.use('TkAgg')  # this must immediately follow 'import matplotlib', even if IDE complains.
 
+from datetime import datetime, timedelta, timezone
+
 import tkinter as tk
 from tkinter import ttk
 from math import isnan
@@ -27,12 +29,12 @@ PLOT_TITLE_COLOR = 'gray'
 GRID_COLOR = 'lightgray'
 
 
-def redraw_plot(canvas, mdf, star_id, bands_to_plot,
-                show_errorbars=True, show_grid=True, show_lessthans=False,
-                jd_start=None, jd_end=None, num_days=None):
+def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_grid=True,
+                show_lessthans=False, plot_in_jd=True, jd_start=None, jd_end=None, num_days=None):
     """  Reformat data for matplotlib, then clear and redraw plot area only, and trigger replacement of
     the old plot by the new plot within the containing tkinter Frame.
     Do not touch other areas of main page, and do not change any external data.
+    :param plot_in_jd:
     :param canvas: canvas containing LCG plot [matplotlib FigureCanvasTkAgg object].
     :param mdf: data to plot [MiniDataFrame object].
     :param star_id: star ID to plot [string].
@@ -40,6 +42,7 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot,
     :param show_errorbars: True to plot errorbars with datapoints, else False [boolean].
     :param show_grid: True to plot grid behind plot, else False [boolean].
     :param show_lessthans: True to plot "less-than" datapoints as normal ones, else omit [boolean].
+    :param plot_in_jd: True to plot x-axis in Julian Data, False for US-format calendar dates [boolean].
     ==== User, via the GUI, needs to supply 2 of the following 3 values to define x-range of plot:
     :param jd_start: JD to be at plot's left edge [float].
     :param jd_end:  JD to be at plot's right edge, often the current JD [float].
@@ -67,7 +70,10 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot,
     ax = canvas.figure.axes[0]
     ax.clear()
     ax.set_title(star_id.upper(), color=PLOT_TITLE_COLOR, fontname='Consolas', fontsize=16, weight='bold')
-    ax.set_xlabel('JD')
+    if plot_in_jd:
+        ax.set_xlabel('JD')
+    else:
+        ax.set_xlabel('Date (UTC)')
     ax.set_ylabel('Magnitude')
     if show_grid:
         ax.grid(True, color=GRID_COLOR, zorder=-1000)  # zorder->behind everything else.
@@ -85,10 +91,16 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot,
         is_band = [b == band for b in mdf.column('band')]
         mdf_band = mdf.row_subset(is_band)
         if sum(is_band) >= 1:
-            ax.scatter(x=mdf_band.column('JD'), y=mdf_band.column('mag'),
+            if plot_in_jd:
+                x = mdf_band.column('JD')  # use Julian Dates just as they are.
+            else:
+                x = [util.datetime_utc_from_jd(jd) for jd in mdf_band.column('JD')]  # convert to datetimes.
+            ax.scatter(x=x, y=mdf_band.column('mag'),
                        color=band_color, marker=band_marker,
                        s=25, alpha=0.9, zorder=+1000)  # zorder->on top of everything.
             legend_labels.append(band)
+
+    # Compute x-axis limits:
     if jd_end is None:
         x_high = util.jd_now()
     else:
@@ -97,13 +109,25 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot,
         x_low = x_high - num_days
     else:
         x_low = jd_start
+    if not plot_in_jd:
+        x_high = util.datetime_utc_from_jd(x_high)
+        x_low = util.datetime_utc_from_jd(x_low)
     x_range = abs(x_high - x_low)
+    print(x_low, x_high, x_range)
     ax.set_xlim(x_low - 0.00 * x_range, x_high + 0.00 * x_range)
-    ax.get_xaxis().get_major_formatter().set_useOffset(False)  # possibly improve this later.
-    # To follow convention of brighter (=lesser value) manitudes to be plotted toward plot top.
-    # The next lines are a kludge, due to ax.invert_yaxis() repeatedly inverting on successive calls.
-    y_low, y_high = ax.set_ylim()
 
+    # Format x-axis labels:
+    if plot_in_jd:
+        ax.get_xaxis().get_major_formatter().set_useOffset(False)  # possibly improve this later.
+    else:
+        for label in ax.get_xticklabels():
+            label.set_ha("right")
+            label.set_rotation(30)
+
+    # Arrange the y-axis limits (not trivial as we follow convention of brighter =lesser value magnitudes
+    #    to be plotted toward top of plot.
+    # We don't use ax.invert_yaxis() as it has side-effect of repeatedly inverting y on successive calls.
+    y_low, y_high = ax.set_ylim()
     ax.set_ylim(max(y_low, y_high), min(y_low, y_high))
     ax.legend(labels=legend_labels, scatterpoints=1,
               bbox_to_anchor=(0, 1.02, 1, .102), loc=3, ncol=2, borderaxespad=0)

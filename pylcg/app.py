@@ -33,7 +33,7 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
          Data cacheing built with python's built-in package functools.     
          Plotting built with package matplotlib v 2.0.2.
          [pandas dependence removed Sept 7 2018 in favor of local 'MiniDataFrame' class.]
-     This pylcg version: 0.1 BETA, September 6, 2018.
+     This pylcg version: 0.2 BETA, October 12, 2018.
      Eric Dose, Albuquerque, New Mexico, USA
 """
 
@@ -44,7 +44,7 @@ BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
 PYLCG_LOGO = 'pylcg v0.2' + BETA_CHARACTER
 PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'October 11 2018'
+PYLCG_SUB_LOGO = 'October 12 2018'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
 PYLCG_VERSION = '0.2 BETA'
@@ -317,7 +317,7 @@ class ApplicationPylcg(tk.Tk):
         self.lessthan_flag = tk.BooleanVar()
         self.grid_flag.set(True)
         self.errorbar_flag.set(True)
-        self.plotjd_flag.set(True)
+        self.plotjd_flag.set(True)  # 0.2 Beta: disabled for toolbar problems (see below)
         self.lessthan_flag.set(False)
         self.grid_flag.trace("w", lambda name, index,
                                          mode: self._entered_star(self.target_list.current()))
@@ -339,6 +339,7 @@ class ApplicationPylcg(tk.Tk):
         plotjd_checkbutton.grid(row=0, column=1, sticky='w')
         errorbars_checkbutton.grid(row=1, column=0, sticky='w')
         lessthan_checkbutton.grid(row=1, column=1, sticky='w')
+        plotjd_checkbutton.state(['disabled'])  # 0.2 Beta, as TK Toolbar misbehaves on calendar dates.
 
         self.mdf_obs_data = MiniDataFrame()  # declare here, as will be depended upon later.
 
@@ -613,7 +614,7 @@ class ApplicationPylcg(tk.Tk):
         # print(web.get_vsx_obs.cache_info())  # show cache hits, number of entries, etc
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
-                            show_lessthans=self.lessthan_flag.get(),
+                            show_lessthans=self.lessthan_flag.get(), plot_in_jd=self.plotjd_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
 
 
