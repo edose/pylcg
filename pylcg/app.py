@@ -3,7 +3,8 @@ from collections import OrderedDict
 import matplotlib
 # next line (.use()) *must* come before other matplotlib/tkinter imports, even if IDE complains.
 matplotlib.use('TkAgg')  # graphics backend
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg  MPL 2.0
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from matplotlib import style
 from matplotlib import pyplot as plt
@@ -42,13 +43,13 @@ ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', '
              'MA', 'MB', 'MI', 'ZS', 'Y', 'HA', 'HAC']
 BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
-PYLCG_LOGO = 'pylcg v0.2' + BETA_CHARACTER
+PYLCG_LOGO = 'pylcg v0.21' + BETA_CHARACTER
 PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'October 12 2018'
+PYLCG_SUB_LOGO = 'October 14 2018'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
-PYLCG_VERSION = '0.2 BETA'
-PYLCG_VERSION_DATE = 'October 11, 2018'
+PYLCG_VERSION = '0.21 BETA'
+PYLCG_VERSION_DATE = 'October 14, 2018'
 
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
@@ -84,6 +85,8 @@ class ApplicationPylcg(tk.Tk):
 
         self.preferences = prefs.Preferences()  # load preferences from file .\data\preferences.ini.
 
+        # print(matplotlib.__version__)
+
         display_frame = self.subdivide_main_frame()
 
         plot_frame, toolbar_frame = self.subdivide_display_frame(display_frame)
@@ -93,15 +96,17 @@ class ApplicationPylcg(tk.Tk):
         # Assign matplotlib scatter plot to plot frame:
         fig = Figure(figsize=(10.24, 7.20), dpi=100)
         ax = fig.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(fig, plot_frame)
-        self.canvas.show()
+        self.canvas = FigureCanvasTkAgg(fig, plot_frame)  # will become FigureCanvasTk() in mpl 3.0?
+#         self.canvas.show()  # will become .draw() in mpl 3.0?  <-- MPL 2.0
+        self.canvas.draw()  # will become .draw() in mpl 3.0?
         # To change size, alternatively:
         #    fig.set_size_inches(new_width, new_height, forward=True)
         #    fig.set_dpi(100)
 
         # Assign navigation buttons to toolbar frame:
         # note: NavigationToolbar2TkAgg must be isolated in its own frame.
-        toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)
+#         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)  #  MPL 2.0
+        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)  #  mpl 3.0
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)

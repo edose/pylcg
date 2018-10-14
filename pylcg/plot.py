@@ -113,7 +113,7 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
         x_high = util.datetime_utc_from_jd(x_high)
         x_low = util.datetime_utc_from_jd(x_low)
     x_range = abs(x_high - x_low)
-    print(x_low, x_high, x_range)
+    # print(x_low, x_high, x_range)
     ax.set_xlim(x_low - 0.00 * x_range, x_high + 0.00 * x_range)
 
     # Format x-axis labels:
