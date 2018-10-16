@@ -3,13 +3,13 @@ from collections import OrderedDict
 import matplotlib
 # next line (.use()) *must* come before other matplotlib/tkinter imports, even if IDE complains.
 matplotlib.use('TkAgg')  # graphics backend
-# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg  MPL 2.0
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from matplotlib import style
 from matplotlib import pyplot as plt
 
 import sys
+from datetime import datetime, timezone
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as tkm
@@ -19,7 +19,7 @@ import pylcg.preferences as prefs
 import pylcg.plot as plotter
 import pylcg.web as web
 from pylcg.util import jd_now, MiniDataFrame, TargetList, get_star_ids_from_upload_file, \
-    jd_from_any_date_string, jd_from_datetime_utc
+    jd_from_any_date_string, jd_from_datetime_utc, datetime_utc_from_jd
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -93,22 +93,20 @@ class ApplicationPylcg(tk.Tk):
 
         self.target_list = TargetList()
 
-        # Assign matplotlib scatter plot to plot frame:
+        # Assign plot's figure to plot_frame:
         fig = Figure(figsize=(10.24, 7.20), dpi=100)
         ax = fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(fig, plot_frame)  # will become FigureCanvasTk() in mpl 3.0?
-#         self.canvas.show()  # will become .draw() in mpl 3.0?  <-- MPL 2.0
-        self.canvas.draw()  # will become .draw() in mpl 3.0?
+        self.canvas.draw()  # for mpl 3.0
         # To change size, alternatively:
-        #    fig.set_size_inches(new_width, new_height, forward=True)
-        #    fig.set_dpi(100)
+        #    fig.set_size_inches(new_width, new_height, forward=True); fig.set_dpi(100)
 
         # Assign navigation buttons to toolbar frame:
-        # note: NavigationToolbar2TkAgg must be isolated in its own frame.
-#         toolbar = NavigationToolbar2TkAgg(self.canvas, toolbar_frame)  #  MPL 2.0
-        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)  #  mpl 3.0
+        # note: NavigationToolbar2Tk must be isolated in its own frame.
+#        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)  # for matplotlib 3.0
+        self.toolbar = PylcgNavigationToolbar(self.canvas, toolbar_frame)  # for mpl 3.0 (& own class)
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        toolbar.update()
+        self.toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
         self.update()
         self.build_control_frame()
@@ -322,7 +320,7 @@ class ApplicationPylcg(tk.Tk):
         self.lessthan_flag = tk.BooleanVar()
         self.grid_flag.set(True)
         self.errorbar_flag.set(True)
-        self.plotjd_flag.set(True)  # 0.2 Beta: disabled for toolbar problems (see below)
+        self.plotjd_flag.set(True)
         self.lessthan_flag.set(False)
         self.grid_flag.trace("w", lambda name, index,
                                          mode: self._entered_star(self.target_list.current()))
@@ -344,7 +342,7 @@ class ApplicationPylcg(tk.Tk):
         plotjd_checkbutton.grid(row=0, column=1, sticky='w')
         errorbars_checkbutton.grid(row=1, column=0, sticky='w')
         lessthan_checkbutton.grid(row=1, column=1, sticky='w')
-        plotjd_checkbutton.state(['disabled'])  # 0.2 Beta, as TK Toolbar misbehaves on calendar dates.
+        # plotjd_checkbutton.state(['disabled'])  # 0.2 Beta, as TK Toolbar misbehaves on calendar dates.
 
         self.mdf_obs_data = MiniDataFrame()  # declare here, as will be depended upon later.
 
@@ -621,6 +619,97 @@ class ApplicationPylcg(tk.Tk):
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             show_lessthans=self.lessthan_flag.get(), plot_in_jd=self.plotjd_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
+        self.toolbar.update_with_app(self)
+
+
+class PylcgNavigationToolbar(NavigationToolbar2Tk):
+    """
+    Pylcg's own navigation toolbar, for breakpoints and then inspection of WTH tkinter is doing."""
+    def __init__(self, canvas_, parent_):
+        # self.toolitems = (
+        #     ('Home', 'Reset original view of this star', 'home', 'home'),
+        #     ('Back', 'Back to previous view', 'back', 'back'),
+        #     ('Forward', 'Forward to next view', 'forward', 'forward'),
+        #     (None, None, None, None),
+        #     ('Pan', 'Pan axes with left mouse, zoom with right', 'move', 'pan'),
+        #     ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
+        #     (None, None, None, None),
+        #     ('Subplots', 'Configure margins, etc', 'subplots', 'configure_subplots'),
+        #     ('Save', 'Save the figure as an image file', 'filesave', 'save_figure'),
+        # )
+        NavigationToolbar2Tk.__init__(self, canvas_, parent_)
+        self.app_object = None  # for a reference to pylcg application object (yes, the whole thing).
+
+    def update_with_app(self, app_object):
+        self.app_object = app_object
+        self.update()
+
+    def mouse_move(self, event):
+        """Overrides NavigationToolbar2 method, to nicely format cursor's x,y (next to toolbar)."""
+        import matplotlib.dates
+        self._set_cursor(event)
+
+        if event.inaxes and event.inaxes.get_navigate():
+            try:
+                # s = event.inaxes.format_coord(event.xdata, event.ydata)  # original code
+                # s = str(type(event.xdata)) + '  ' + str(event.xdata)  # test code only
+                if self.app_object is not None:
+                    if self.app_object.plotjd_flag.get() is True:
+                        # event.xdata contains Julian Date (float).
+                        x_jd = event.xdata
+                        x_utc = datetime_utc_from_jd(event.xdata)
+                        s = 'cursor: {:12.3f}   ( '.format(x_jd) +\
+                            x_utc.strftime("%x %X utc") +\
+                            ' )      mag {:6.3f}'.format(event.ydata)
+                    else:
+                        # event.xdata contains calendar date (python datetime).
+                        x_utc = matplotlib.dates.num2date(event.xdata, tz=timezone.utc)
+                        x_jd = jd_from_datetime_utc(x_utc)
+                        s = 'cursor: ' + x_utc.strftime("%x %X  utc") +\
+                            '    ( {:12.3f} )'.format(x_jd) +\
+                            '      mag {:6.3f}'.format(event.ydata)
+                else:
+                    s = ''
+            except (ValueError, OverflowError):
+                pass
+            else:
+                artists = [a for a in event.inaxes.mouseover_set
+                           if a.contains(event) and a.get_visible()]
+
+                if artists:
+                    a = max(artists, key=lambda x: x.zorder)
+                    if a is not event.inaxes.patch:
+                        data = a.get_cursor_data(event)
+                        if data is not None:
+                            s += ' [%s]' % a.format_cursor_data(data)
+
+                if len(self.mode):
+                    self.set_message('%s, %s' % (self.mode, s))
+                else:
+                    self.set_message(s)
+        else:
+            self.set_message(self.mode)
+
+    def draw(self):
+        """Redraw the canvases, update the locators"""
+        for a in self.canvas.figure.get_axes():
+            xaxis = getattr(a, 'xaxis', None)  # matplotlib.axis.XAxis object
+            yaxis = getattr(a, 'yaxis', None)  # matplotlib.axis.YAxis object
+            # TODO: modify x-axis locator and formatter here.
+            # If you're going to modify x-axis locator and formatter, this is the place to do it.
+            # First, get the major locator and major formatter into variables, update them with new values,
+            #    store them with .set_major_locator() etc calls, then resume with refresh and redraw.
+            locators = []
+            if xaxis is not None:
+                locators.append(xaxis.get_major_locator())  # matplotlib.ticker.AutoLocator object
+                locators.append(xaxis.get_minor_locator())  # matplotlib.ticker.NullLocator object
+            if yaxis is not None:
+                locators.append(yaxis.get_major_locator())  # matplotlib.ticker.AutoLocator object
+                locators.append(yaxis.get_minor_locator())  # matplotlib.ticker.NullLocator object
+
+            for loc in locators:
+                loc.refresh()
+        self.canvas.draw_idle()
 
 
 # ***** Python file entry here. *****

@@ -143,8 +143,8 @@ def get_star_ids_from_upload_file(fullpath):
 class TargetList:
     """  List of targets to service the Target 'Prev' and 'Next' buttons [list of strings]."""
     def __init__(self, target_or_list=None):
-        self.targets = []
-        self.pointer = None
+        self.targets = []  # this will become a list of PlotTarget objects.
+        self.target_index = None  # points to currently plotted target.
         if target_or_list is not None:
             if isinstance(target_or_list, str):
                 self.add([target_or_list])  # handling python's pitiful str/list confusions.
@@ -175,25 +175,26 @@ class TargetList:
         if self.is_empty():
             # Add new targets and point to first one:
             self.targets.extend(new_targets)
-            self.pointer = 0
+            self.target_index = 0
         else:
             # Insert all new targets and point to first one:
-            self.targets = self.targets[:self.pointer + 1] + new_targets + self.targets[self.pointer + 1:]
-            self.pointer += 1
+            self.targets = self.targets[:self.target_index + 1] + new_targets + \
+                           self.targets[self.target_index + 1:]
+            self.target_index += 1
 
     def prev_exists(self):
         """  Return True iff there exists a target just before current position. """
-        if self.is_empty() or self.pointer is None:
+        if self.is_empty() or self.target_index is None:
             return False
-        if not (0 < self.pointer <= self.n() - 1):
+        if not (0 < self.target_index <= self.n() - 1):
             return False
         return True
 
     def next_exists(self):
         """  Return True iff there exists a target just after current position. """
-        if self.is_empty() or self.pointer is None:
+        if self.is_empty() or self.target_index is None:
             return False
-        if not (0 <= self.pointer < self.n() - 1):
+        if not (0 <= self.target_index < self.n() - 1):
             return False
         return True
 
@@ -201,21 +202,21 @@ class TargetList:
         """  Go to next position, and return target found there. """
         if not self.prev_exists():
             return None
-        self.pointer -= 1
-        return self.targets[self.pointer]
+        self.target_index -= 1
+        return self.targets[self.target_index]
 
     def go_next(self):
         """  Go to previous position, and return target found there. """
         if not self.next_exists():
             return None
-        self.pointer += 1
-        return self.targets[self.pointer]
+        self.target_index += 1
+        return self.targets[self.target_index]
 
     def current(self):
         """  Return target at current position. """
-        if self.is_empty() or self.pointer is None:
+        if self.is_empty() or self.target_index is None:
             return None
-        return self.targets[self.pointer]
+        return self.targets[self.target_index]
 
 
 class Error(Exception):
