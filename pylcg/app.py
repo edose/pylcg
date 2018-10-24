@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 
 import sys
 from datetime import datetime, timezone
+from collections import Counter
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as tkm
@@ -20,6 +21,8 @@ import pylcg.plot as plotter
 import pylcg.web as web
 from pylcg.util import jd_now, MiniDataFrame, TargetList, get_star_ids_from_upload_file, \
     jd_from_any_date_string, jd_from_datetime_utc, datetime_utc_from_jd
+from pylcg.table_window import TableWindow
+
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
@@ -367,7 +370,7 @@ class ApplicationPylcg(tk.Tk):
         button_webobs.grid(row=1, column=1, sticky='ew')
         button_clearcache.grid(row=2, column=1, sticky='ew')
         button_preferences.state(['disabled'])
-        button_listobservers.state(['disabled'])
+        button_listobservers.state(['!disabled'])  # enabled
         button_vsx.state(['!disabled'])  # enabled
         button_webobs.state(['!disabled'])  # enabled
         button_clearcache.state(['!disabled'])  # enabled
@@ -426,8 +429,30 @@ class ApplicationPylcg(tk.Tk):
         label_author.grid(sticky='ew')
 
     def _listobservers_window(self):
-        """  Postponed until later version, if there is demand for it."""
-        pass
+        window_label = 'LIST OBSERVERS'
+        column_names = ['Obs code', 'Observations', 'Name', 'Affiliation', 'Country']
+
+        # Make data for table:
+        key_iterator = zip(self.mdf_obs_data.dict['by'], self.mdf_obs_data.dict['obsName'],
+                           self.mdf_obs_data.dict['obsAffil'], self.mdf_obs_data.dict['obsCountry'])
+        counter_dict = Counter()
+        for key in key_iterator:
+            counter_dict[key] += 1
+        sorted_raw_data_list = counter_dict.most_common()
+        data_list = []
+        for row in sorted_raw_data_list:
+            obscode, name, affiliation, country = row[0]
+            count = row[1]
+            data_list.append((obscode, '{:9d}'.format(count), name, affiliation, country))  # all strings
+
+        # Make window header & draw window:
+        target_name = self.target_list.current()
+        total_obs_count = sum(counter_dict.values())
+        total_observer_count = len(counter_dict)
+        header_text = '\n'.join(['OBSERVATION COUNT by OBSERVER', '  Target: ' + target_name,
+                                 '  ' + str(total_obs_count) + ' obs from ' + str(total_observer_count) +
+                                 ' observers', '', '(click column header to sort)'])
+        _ = TableWindow(self, window_label, header_text, column_names, data_list)  # (no ref needed)
 
     def _quit_window(self):
         """  Popup window to ensure user really wants to quit. Stops entire program if user confirms.
@@ -712,11 +737,8 @@ class PylcgNavigationToolbar(NavigationToolbar2Tk):
         self.canvas.draw_idle()
 
 
-# ***** Python file entry here. *****
+# Python module entry here:
 # We must do without entry via functions, because tkinter just can't do that right.
-# Thus, enter via this python file. We'll add arguments later, if necessary.
-# Sigh.
-# Well, at least this might later facilitate the making of executables for distribution.
 if __name__ == "__main__":
     app = ApplicationPylcg()
     app.mainloop()

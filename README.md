@@ -31,7 +31,7 @@ Same with grid and error bars: change the check boxes and it updates immediately
 1. Star names may be imported from an upload file! The order within the file is retained, and duplicates are removed. This has been tested for both Extended (CCD) Format and Visual Format upload files. 
 2. The Prev and Next buttons plot the previous or next star. This works whether star names were typed in or imported from an upload file. 
 3. Calendar dates or Julian Dates may be entered in the Start and End boxes, in any combination. Plots will still be in Julian Date (see above). Entered dates may be in US format (mm/dd/yyyy) or international format (dd.mm.yyyy or dd-mm-yyyy).
-4. Check marks on the right of the Start, End, and Days entry boxes mean that pylcg understands what's in the box. An X mark means it doesn't understand, and a dash means the entry box appears to be entry. When the check mark is highlighted green, that means that data has been loaded and plotted using those values. 
+4. Check marks on the right of the Start, End, and Days entry boxes mean that pylcg understands what's in the box. An X mark means it doesn't understand, and a dash means the entry box appears to be empty. When the check mark is highlighted green, that means that data has been loaded and plotted using those values. 
 5. Less-than observations may be toggled on or off.
 6. Cache may be cleared by user in the unlikely event something goes wrong with a download.
 
