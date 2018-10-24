@@ -639,10 +639,17 @@ class ApplicationPylcg(tk.Tk):
             self.mdf_obs_data = web.get_vsx_obs(star_id=star_id,
                                                 jd_start=jd_start, jd_end=jd_end,
                                                 num_days=jd_end - jd_start)
-        # print(web.get_vsx_obs.cache_info())  # show cache hits, number of entries, etc
+        # TODO: connect obscode_to_highlight to a tk control variable.
+        # plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
+        #                     show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
+        #                     show_lessthans=self.lessthan_flag.get(),
+        #                     obscode_to_highlight=self.obscode_to_highlight.get(),
+        #                     plot_in_jd=self.plotjd_flag.get(),
+        #                     jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
-                            show_lessthans=self.lessthan_flag.get(), plot_in_jd=self.plotjd_flag.get(),
+                            show_lessthans=self.lessthan_flag.get(), obscode_to_highlight='DERA',
+                            plot_in_jd=self.plotjd_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
         self.toolbar.update_with_app(self)
 
