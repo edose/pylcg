@@ -20,6 +20,7 @@ BAND_DEFAULT_COLORS = {'V': 'xkcd:kelley green',
 BAND_DEFAULT_COLOR_DEFAULT = 'gray'
 BAND_MARKERS = {'V': 'o', 'R': 'o', 'I': 'o', 'B': 'o', 'Vis.': 'v'}
 BAND_MARKERS_DEFAULT = 'x'
+HIGHLIGHT_COLOR = '#ffe090'  # very light orange
 
 LARGE_FONT = ("Verdana", 12)
 NORM_FONT = ("Verdana", 10)
@@ -30,7 +31,8 @@ GRID_COLOR = 'lightgray'
 
 
 def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_grid=True,
-                show_lessthans=False, obscode_to_highlight='',
+                show_lessthans=False, observer_selected='',
+                highlight_observer=False, plot_observer_only=False,
                 plot_in_jd=True, jd_start=None, jd_end=None, num_days=None):
     """  Reformat data for matplotlib, then clear and redraw plot area only, and trigger replacement of
     the old plot by the new plot within the containing tkinter Frame.
@@ -43,7 +45,9 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
     :param show_errorbars: True to plot errorbars with datapoints, else False [boolean].
     :param show_grid: True to plot grid behind plot, else False [boolean].
     :param show_lessthans: True to plot "less-than" datapoints as normal ones, else omit [boolean].
-    :param obscode_to_highlight: observer code whose observations to highlight ('' means none) [string].
+    :param observer_selected: observer code whose observations to highlight ('' means none) [string].
+    :param highlight_observer: True iff observations from obscode_to_highlight to be highlighted [boolean].
+    :param plot_observer_only: True iff only observations from obscode_to_highlight to be plotted [boolean].
     :param plot_in_jd: True to plot x-axis in Julian Data, False for US-format calendar dates [boolean].
     ==== User, via the GUI, needs to supply 2 of the following 3 values to define x-range of plot:
     :param jd_start: JD to be at plot's left edge [float].
@@ -82,6 +86,9 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
     if show_errorbars:
         is_to_be_drawn = [b in bands_to_plot for b in mdf.column('band')]
         mdf_to_be_drawn = mdf.row_subset(is_to_be_drawn)
+        if plot_observer_only:
+            is_observer = [o.upper() == observer_selected.upper() for o in mdf_to_be_drawn.column('by')]
+            mdf_to_be_drawn = mdf_to_be_drawn.row_subset(is_observer)
         ax.errorbar(x=mdf_to_be_drawn.column('JD'), y=mdf_to_be_drawn.column('mag'),
                     xerr=0.0, yerr=mdf_to_be_drawn.column('uncert'),
                     fmt='none', ecolor='gray', capsize=2, alpha=1,
@@ -93,25 +100,33 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
         band_marker = BAND_MARKERS.get(band, BAND_MARKERS_DEFAULT)
         is_band = [b == band for b in mdf.column('band')]
         mdf_band = mdf.row_subset(is_band)
-        if sum(is_band) >= 1:
-            if plot_in_jd:
-                x_plot = mdf_band.column('JD')  # use Julian Dates just as they are.
-            else:
-                x_plot = [util.datetime_utc_from_jd(jd) for jd in mdf_band.column('JD')]  # to datetimes.
-            y_plot = mdf_band.column('mag')
-            ax.scatter(x=x_plot, y=y_plot,
-                       color=band_color, marker=band_marker,
-                       s=25, alpha=0.9, zorder=+1000)  # zorder->on top.
-            legend_labels.append(band)
-            # Before we leave this band, store x and y for any points to be highlighted for observer:
-            if obscode_to_highlight is not None:
-                if obscode_to_highlight.strip() != '':
-                    is_obscode = [u.upper() == obscode_to_highlight.upper() for u in mdf_band.column('by')]
-                    if sum(is_obscode) >= 1:
-                        x_highlight_this_band = [xx for (xx, keep) in zip(x_plot, is_obscode) if keep]
-                        y_highlight_this_band = [yy for (yy, keep) in zip(y_plot, is_obscode) if keep]
-                        x_to_highlight.extend(x_highlight_this_band)
-                        y_to_highlight.extend(y_highlight_this_band)
+        if plot_observer_only:
+            is_observer = [o.upper() == observer_selected.upper() for o in mdf_band.column('by')]
+            mdf_band = mdf_band.row_subset(is_observer)
+        if mdf_band is not None:
+            if mdf_band.len() >= 1:
+                if plot_in_jd:
+                    x_plot = mdf_band.column('JD')  # use Julian Dates just as they are.
+                else:
+                    x_plot = [util.datetime_utc_from_jd(jd) for jd in mdf_band.column('JD')]  # to datetime.
+                y_plot = mdf_band.column('mag')
+                ax.scatter(x=x_plot, y=y_plot,
+                           color=band_color, marker=band_marker,
+                           s=25, alpha=0.9, zorder=+1000)  # zorder->on top.
+                legend_labels.append(band)
+                # Before we leave this band, store x and y for any points to be highlighted for observer:
+                if highlight_observer:
+                    if observer_selected is not None:
+                        if observer_selected.strip() != '':
+                            is_obscode = [u.upper() == observer_selected.upper()
+                                          for u in mdf_band.column('by')]
+                            if sum(is_obscode) >= 1:
+                                x_highlight_this_band = [xx for (xx, keep) in zip(x_plot, is_obscode)
+                                                         if keep]
+                                y_highlight_this_band = [yy for (yy, keep) in zip(y_plot, is_obscode)
+                                                         if keep]
+                                x_to_highlight.extend(x_highlight_this_band)
+                                y_to_highlight.extend(y_highlight_this_band)
 
     # Plot legend here, before more scatter plots can mess it up:
     ax.legend(labels=legend_labels,
@@ -120,8 +135,8 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
     # Highlight observer's points, if requested:
     if len(x_to_highlight) >= 1:
         ax.scatter(x=x_to_highlight, y=y_to_highlight,
-                   color='orange', marker='o',
-                   s=200, alpha=0.25, zorder=+800)  # under point marker and errorbar.
+                   color=HIGHLIGHT_COLOR, marker='o',
+                   s=200, alpha=0.75, zorder=+800)  # under point marker and errorbar.
 
     # Compute x-axis limits:
     if jd_end is None:

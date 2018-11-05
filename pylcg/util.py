@@ -199,14 +199,14 @@ class TargetList:
         return True
 
     def go_prev(self):
-        """  Go to next position, and return target found there. """
+        """  Go to previous position, and return target found there. """
         if not self.prev_exists():
             return None
         self.target_index -= 1
         return self.targets[self.target_index]
 
     def go_next(self):
-        """  Go to previous position, and return target found there. """
+        """  Go to next position, and return target found there. """
         if not self.next_exists():
             return None
         self.target_index += 1

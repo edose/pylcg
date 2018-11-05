@@ -37,7 +37,7 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
          Data cacheing built with python's built-in package functools.     
          Plotting built with package matplotlib v 2.0.2.
          [pandas dependence removed Sept 7 2018 in favor of local 'MiniDataFrame' class.]
-     This pylcg version: 0.2 BETA, October 12, 2018.
+     This pylcg version: 0.3 BETA, November 7, 2018.
      Eric Dose, Albuquerque, New Mexico, USA
 """
 
@@ -46,13 +46,13 @@ ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', '
              'MA', 'MB', 'MI', 'ZS', 'Y', 'HA', 'HAC']
 BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
-PYLCG_LOGO = 'pylcg v0.21' + BETA_CHARACTER
+PYLCG_LOGO = 'pylcg v0.3' + BETA_CHARACTER
 PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'October 14 2018'
+PYLCG_SUB_LOGO = 'November 7, 2018'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
-PYLCG_VERSION = '0.21 BETA'
-PYLCG_VERSION_DATE = 'October 14, 2018'
+PYLCG_VERSION = '0.3 BETA'
+PYLCG_VERSION_DATE = 'November 7, 2018'
 
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
@@ -118,17 +118,22 @@ class ApplicationPylcg(tk.Tk):
         """  Build the GUI's menu. No return value."""
         # Build menu bar:
         menubar = tk.Menu(self.main_frame)
+
         file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label='Clear cache of downloaded data', command=web.get_vsx_obs.cache_clear)
         file_menu.add_command(label='Exit', command=self._quit_window)
         menubar.add_cascade(label='File', menu=file_menu)
+
         preferences_menu = tk.Menu(menubar, tearoff=0)
         preferences_menu.add_command(label='Reload User Preferences',
                                      command=prefs.Preferences.load_ini_file)
         preferences_menu.add_command(label='Set all Preferences to Defaults',
                                      command=prefs.Preferences.reset_current_to_default)
         menubar.add_cascade(label='Preferences', menu=preferences_menu)
+
         preferences_menu.entryconfig('Reload User Preferences', state='disabled')
         preferences_menu.entryconfig('Set all Preferences to Defaults', state='disabled')
+
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label='Browse pylcg repo and README', command=web.webbrowse_repo)
         help_menu.add_command(label='About', command=self._about_window)
@@ -345,9 +350,31 @@ class ApplicationPylcg(tk.Tk):
         plotjd_checkbutton.grid(row=0, column=1, sticky='w')
         errorbars_checkbutton.grid(row=1, column=0, sticky='w')
         lessthan_checkbutton.grid(row=1, column=1, sticky='w')
-        # plotjd_checkbutton.state(['disabled'])  # 0.2 Beta, as TK Toolbar misbehaves on calendar dates.
 
         self.mdf_obs_data = MiniDataFrame()  # declare here, as will be depended upon later.
+
+        # ----- Observer Code to Highlight or Plot-only labelframe:
+        highlight_labelframe = tk.LabelFrame(control_subframe1, text='Observer code', padx=10, pady=8)
+        highlight_labelframe.grid(pady=10, sticky='ew')
+        highlight_labelframe.grid_columnconfigure(0, weight=1)
+        self.observer_selected = tk.StringVar()
+        self.highlight_flag = tk.BooleanVar()
+        self.plot_only_flag = tk.BooleanVar()
+        self.observer_selected.trace('w', lambda name, index,
+                                                 mode: self._entered_star(self.target_list.current()))
+        self.highlight_flag.trace('w', lambda name, index,
+                                              mode: self._entered_star(self.target_list.current()))
+        self.plot_only_flag.trace('w', lambda name, index,
+                                              mode: self._entered_star(self.target_list.current()))
+        self.observer_selected_entry = ttk.Entry(highlight_labelframe, width=8, justify=tk.LEFT,
+                                                 textvariable=self.observer_selected)
+        self.highlight_checkbutton = ttk.Checkbutton(highlight_labelframe, text='Highlight',
+                                                     variable=self.highlight_flag)
+        self.plot_only_checkbutton = ttk.Checkbutton(highlight_labelframe, text='Plot Only',
+                                                     variable=self.plot_only_flag)
+        self.observer_selected_entry.grid(row=0, column=0, rowspan=2, sticky='ew')
+        self.highlight_checkbutton.grid(row=0, column=1, sticky='w')
+        self.plot_only_checkbutton.grid(row=1, column=1, sticky='w')
 
         # ----- Button frame:
         button_frame = tk.Frame(control_subframe1, pady=12)
@@ -362,18 +389,18 @@ class ApplicationPylcg(tk.Tk):
                                 command=lambda: web.webbrowse_vsx(self.star_entered.get()))
         button_webobs = ttk.Button(button_frame, text='Observations',
                                    command=lambda: web.webbrowse_webobs(self.star_entered.get()))
-        button_clearcache = ttk.Button(button_frame, text='Clear cache',
-                                       command=web.get_vsx_obs.cache_clear)
+        # button_clearcache = ttk.Button(button_frame, text='Clear cache',
+        #                                command=web.get_vsx_obs.cache_clear)
         button_preferences.grid(row=0, column=0, sticky='ew')
         button_listobservers.grid(row=1, column=0, sticky='ew')
         button_vsx.grid(row=0, column=1, sticky='ew')
         button_webobs.grid(row=1, column=1, sticky='ew')
-        button_clearcache.grid(row=2, column=1, sticky='ew')
+        # button_clearcache.grid(row=2, column=1, sticky='ew')
         button_preferences.state(['disabled'])
         button_listobservers.state(['!disabled'])  # enabled
         button_vsx.state(['!disabled'])  # enabled
         button_webobs.state(['!disabled'])  # enabled
-        button_clearcache.state(['!disabled'])  # enabled
+        # button_clearcache.state(['!disabled'])  # enabled
 
         # Subframe quit_frame:
         quit_frame = tk.Frame(self.control_frame, height=60)
@@ -622,6 +649,9 @@ class ApplicationPylcg(tk.Tk):
             self.timestart_flag_label.config(fg='gray', bg=self.label_background_color)
             self.timeend_flag_label.config(fg='gray', bg=self.label_background_color)
 
+    def _update_highlight(self):
+        pass
+
     def _plot_star(self, star_id, must_get_obs_data=True):
         """  Assembles required data, and passes it to module plot.py, which does makes the plot.
         :param star_id: ID of star to plot, read from GUI entry box.
@@ -648,7 +678,10 @@ class ApplicationPylcg(tk.Tk):
         #                     jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
-                            show_lessthans=self.lessthan_flag.get(), obscode_to_highlight='DERA',
+                            show_lessthans=self.lessthan_flag.get(),
+                            observer_selected=self.observer_selected.get(),
+                            highlight_observer=self.highlight_flag.get(),
+                            plot_observer_only=self.plot_only_flag.get(),
                             plot_in_jd=self.plotjd_flag.get(),
                             jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
         self.toolbar.update_with_app(self)
