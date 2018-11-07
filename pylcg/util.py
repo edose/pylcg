@@ -1,7 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from collections import OrderedDict   # OrderedDict removes duplicates while preserving order
 #                                       (NB: in py 3.7+, native python dictionaries will do this too.)
-import csv
 import urllib.request
 from math import nan
 
@@ -306,8 +305,9 @@ class MiniDataFrame:
         # get nested list of data from URL:
         byte_text = urllib.request.urlopen(url)
         text = [line.decode('utf-8') for line in byte_text]
-        reader = csv.reader(text, delimiter=delimiter)
-        data = [row for row in reader]
+        # reader = csv.reader(text, delimiter=delimiter)
+        # data = [row for row in reader]
+        data = [line.split(delimiter) for line in text]
         # return data
         # Now, parse nested list into a dict:
         this_dict = dict()
@@ -315,11 +315,11 @@ class MiniDataFrame:
             return None
         column_names = []
         for column_name in data[0]:
-            column_names.append(column_name)
-            this_dict[column_name] = []
+            column_names.append(column_name.strip())
+            this_dict[column_name.strip()] = []
         for row in data[1:]:
             for i_col, column_name in enumerate(column_names):
-                this_dict[column_name].append(row[i_col])
+                this_dict[column_name].append(row[i_col].strip())
         return MiniDataFrame(this_dict)
 
     def row_subset(self, boolean_list):

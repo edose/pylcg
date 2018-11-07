@@ -1,4 +1,3 @@
-import urllib
 import webbrowser
 import functools
 
@@ -7,7 +6,7 @@ import pylcg.util as util
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
 VSX_OBSERVATIONS_HEADER = 'https://www.aavso.org/vsx/index.php?view=api.delim'
-VSX_DELIMITERS = [';', '$', '`', '^', '\\']  # NB: delim ',' fails as obsName values already have a comma.
+VSX_DELIMITER = '@@@'  # NB: ',' fails as obsName values already have a comma.
 PYLCG_REPO_URL = 'https://www.github.com/edose/pylcg'
 VSX_URL_STUB = 'https://www.aavso.org/vsx/index.php?view=results.get&ident='
 WEBOBS_URL_STUB = 'https://www.aavso.org/apps/webobs/results?star='
@@ -26,6 +25,7 @@ def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=
     :return: MiniDataFrame containing data for 1 star, 1 row per observation downloaded,
         (or None if there was some problem).
     """
+    # Simpler single multiple-character delimiter adopted Nov 7 2018 per G. Silvis recommendation.
     parm_ident = '&ident=' + util.make_safe_star_id(star_id)
     if jd_end is None:
         jd_end = util.jd_now()
@@ -34,20 +34,19 @@ def get_vsx_obs(star_id, max_num_obs=None, jd_start=None, jd_end=None, num_days=
         jd_start = jd_end - num_days
     parm_fromjd = '&fromjd=' + '{:20.5f}'.format(jd_start).strip()
 
-    minidataframe = None  # if no data (all delimiters tried fail to deliver obs).
-    for delimiter in VSX_DELIMITERS:  # we try all limiters until one succeeds or (error) all have failed.
-        parm_delimiter = '&delimiter=' + delimiter
-        url = VSX_OBSERVATIONS_HEADER + parm_ident + parm_tojd + parm_fromjd + parm_delimiter
-        minidataframe = util.MiniDataFrame.from_url(url, delimiter=delimiter)
-        if 'uncert' in minidataframe.column_names():
-            uncert_value_strings = [u if u != '' else '0' for u in minidataframe.column('uncert')]
-            minidataframe.set_column('uncert', uncert_value_strings)
-        if minidataframe_has_data(minidataframe):
-            if minidataframe_data_appear_valid(minidataframe):
-                for column_name in ['JD', 'mag', 'uncert']:
-                    minidataframe.to_float(column_name)
-                break
-        print('NO DATA: url=\"' + url + '\"' + ' delim=' + delimiter)
+    parm_delimiter = '&delimiter=' + VSX_DELIMITER
+    url = VSX_OBSERVATIONS_HEADER + parm_ident + parm_tojd + parm_fromjd + parm_delimiter
+    minidataframe = util.MiniDataFrame.from_url(url, delimiter=VSX_DELIMITER)
+
+    if 'uncert' in minidataframe.column_names():
+        uncert_value_strings = [u if u != '' else '0' for u in minidataframe.column('uncert')]
+        minidataframe.set_column('uncert', uncert_value_strings)
+    if minidataframe_has_data(minidataframe):
+        if minidataframe_data_appear_valid(minidataframe):
+            for column_name in ['JD', 'mag', 'uncert']:
+                minidataframe.to_float(column_name)
+    if minidataframe is None:
+        print('NO DATA: url=\"' + url + '\"' + ' delim=' + VSX_DELIMITER)
     return minidataframe
 
 

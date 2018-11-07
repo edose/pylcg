@@ -649,9 +649,6 @@ class ApplicationPylcg(tk.Tk):
             self.timestart_flag_label.config(fg='gray', bg=self.label_background_color)
             self.timeend_flag_label.config(fg='gray', bg=self.label_background_color)
 
-    def _update_highlight(self):
-        pass
-
     def _plot_star(self, star_id, must_get_obs_data=True):
         """  Assembles required data, and passes it to module plot.py, which does makes the plot.
         :param star_id: ID of star to plot, read from GUI entry box.
