@@ -167,6 +167,18 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
     # We don't use ax.invert_yaxis() as it has side-effect of repeatedly inverting y on successive calls.
     y_low, y_high = ax.set_ylim()
     ax.set_ylim(max(y_low, y_high), min(y_low, y_high))
+
+    # Used for zoom/pan...declare and register callbacks:
+    def on_xlims_change(axes):
+        print("updated xlims: ", ax.get_xlim())
+
+    def on_ylims_change(axes):
+        print("updated ylims: ", ax.get_ylim())
+
+    ax.callbacks.connect('xlim_changed', on_xlims_change)
+    ax.callbacks.connect('ylim_changed', on_ylims_change)
+
+    # Must be last statement of this function:
     canvas.draw()
 
 

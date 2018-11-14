@@ -37,7 +37,7 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
          Data cacheing built with python's built-in package functools.     
          Plotting built with package matplotlib v 2.0.2.
          [pandas dependence removed Sept 7 2018 in favor of local 'MiniDataFrame' class.]
-     This pylcg version: 0.3 BETA, November 7, 2018.
+     This pylcg version: 0.3 BETA, November 13, 2018.
      Eric Dose, Albuquerque, New Mexico, USA
 """
 
@@ -48,11 +48,11 @@ BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
 PYLCG_LOGO = 'pylcg v0.3' + BETA_CHARACTER
 PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'November 7, 2018'
+PYLCG_SUB_LOGO = 'November 13, 2018'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
 PYLCG_VERSION = '0.3 BETA'
-PYLCG_VERSION_DATE = 'November 7, 2018'
+PYLCG_VERSION_DATE = 'November 13, 2018'
 
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
@@ -667,12 +667,6 @@ class ApplicationPylcg(tk.Tk):
                                                 jd_start=jd_start, jd_end=jd_end,
                                                 num_days=jd_end - jd_start)
         # TODO: connect obscode_to_highlight to a tk control variable.
-        # plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
-        #                     show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
-        #                     show_lessthans=self.lessthan_flag.get(),
-        #                     obscode_to_highlight=self.obscode_to_highlight.get(),
-        #                     plot_in_jd=self.plotjd_flag.get(),
-        #                     jd_start=jd_start, jd_end=jd_end, num_days=jd_end - jd_start)
         plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             show_lessthans=self.lessthan_flag.get(),
