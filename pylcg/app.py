@@ -41,19 +41,22 @@ __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
      Eric Dose, Albuquerque, New Mexico, USA
 """
 
+# TODO: Verify that this matches the official band list, from link in GS e-mail.
 ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', 'CV', 'CR', 'CBB',
              'SZ', 'SU', 'SG', 'SR', 'SI', 'STU', 'STV', 'STB', 'STY', 'STHBW', 'STHBN',
              'MA', 'MB', 'MI', 'ZS', 'Y', 'HA', 'HAC']
 BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
-PYLCG_LOGO = 'pylcg v0.3' + BETA_CHARACTER
-PYLCG_LOGO_FONT = ('consolas', 20)
-PYLCG_SUB_LOGO = 'November 13, 2018'
+# For top-right corner of main window (title).
+PYLCG_LOGO = 'pylcg v0.31' + BETA_CHARACTER
+PYLCG_LOGO_FONT = ('consolas', 18)
+PYLCG_SUB_LOGO = 'November 21, 2018'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
-PYLCG_VERSION = '0.3 BETA'
-PYLCG_VERSION_DATE = 'November 13, 2018'
+PYLCG_VERSION = '0.31 BETA'
+PYLCG_VERSION_DATE = 'November 21, 2018'
 
+# For About pop-up window.
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
 PYLCG_REPO_FONT = ('consolas', 8, 'underline')
 ABOUT_AUTHOR = 'Made in Albuquerque, New Mexico, USA\n'\
@@ -97,7 +100,7 @@ class ApplicationPylcg(tk.Tk):
         self.target_list = TargetList()
 
         # Assign plot's figure to plot_frame:
-        fig = Figure(figsize=(10.24, 7.20), dpi=100)
+        fig = Figure(figsize=(9.60, 6.80), dpi=100)
         ax = fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(fig, plot_frame)  # will become FigureCanvasTk() in mpl 3.0?
         self.canvas.draw()  # for mpl 3.0
@@ -179,12 +182,14 @@ class ApplicationPylcg(tk.Tk):
         self.control_frame.grid_columnconfigure(0, weight=1)
 
         # Subframe 'logo_frame':
-        logo_frame = ttk.Frame(self.control_frame)
-        logo_frame.grid(row=0, column=0, padx=10, pady=3)
-        label_logo = tk.Label(logo_frame, text='\n' + PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='gray')
-        label_logo.grid(sticky='sew')
-        label_logo = tk.Label(logo_frame, text=PYLCG_SUB_LOGO, font=PYLCG_SUB_LOGO_FONT, fg='black')
-        label_logo.grid(sticky='sew')
+        logo_frame = tk.Frame(self.control_frame, bg='#ccc')
+        logo_frame.grid_columnconfigure(0, weight=1)
+        logo_frame.grid(row=0, column=0, padx=0, pady=0, ipadx=0, sticky='ew')  # padx was 10, pady was 3
+        label_logo = tk.Label(logo_frame, text=PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='#03b',
+                              bg='#ccc')  # aavso blue on gray
+        label_logo.grid(sticky='sew', ipadx=0, padx=0)
+        # label_logo = tk.Label(logo_frame, text=PYLCG_SUB_LOGO, font=PYLCG_SUB_LOGO_FONT, fg='black')
+        # label_logo.grid(sticky='sew')
 
         # Subframe 'control_subframe1':
         control_subframe1 = ttk.Frame(self.control_frame, padding=5)
@@ -194,7 +199,7 @@ class ApplicationPylcg(tk.Tk):
 
         # ----- Star labelframe:
         star_labelframe = tk.LabelFrame(control_subframe1, text=' Star ', padx=10, pady=6)
-        star_labelframe.grid(pady=15, sticky='ew')
+        star_labelframe.grid(pady=8, sticky='ew')  # was 15
         self.button_stars_from_upload = ttk.Button(star_labelframe, text='From upload file...',
                                                    command=self._add_upload_star_ids)
         self.button_stars_from_upload.grid(row=0, column=0, columnspan=2, sticky='e')
@@ -217,8 +222,9 @@ class ApplicationPylcg(tk.Tk):
         self.button_next.config(state='disabled')  # For now
 
         # ----- Time span labelframe:
-        timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span (any 2)', padx=10, pady=8)
-        timespan_labelframe.grid(pady=15, sticky='ew')
+        timespan_labelframe = tk.LabelFrame(control_subframe1, text=' Time span (any 2)', padx=10,
+                                            pady=5)  # pady was 8
+        timespan_labelframe.grid(pady=8, sticky='ew')  # pady was 15
         timespan_labelframe.grid_columnconfigure(1, weight=1)
         self.days_to_plot = tk.StringVar()
         self.timestart = tk.StringVar()
@@ -260,8 +266,9 @@ class ApplicationPylcg(tk.Tk):
         use_now_button.grid(row=3, column=1, columnspan=2, sticky='ew')
 
         # ----- Bands labelframe:
-        self.bands_labelframe = tk.LabelFrame(control_subframe1, text=' Bands ', padx=15, pady=10)
-        self.bands_labelframe.grid(pady=10, sticky='ew')
+        self.bands_labelframe = tk.LabelFrame(control_subframe1, text=' Bands ', padx=15,
+                                              pady=6)  # pady was 10.
+        self.bands_labelframe.grid(pady=6, sticky='ew')  # pady was 10
         self.bands_labelframe.grid_columnconfigure(0, weight=1)
         self.bands_labelframe.grid_columnconfigure(1, weight=1)
 
@@ -319,9 +326,33 @@ class ApplicationPylcg(tk.Tk):
         self.band_others_checkbutton.grid(row=2, column=1, sticky='w')
         self.band_all_checkbutton.grid(row=4, column=1, sticky='w')
 
+        # ----- Observer Code to Highlight or Plot-only labelframe:
+        highlight_labelframe = tk.LabelFrame(control_subframe1, text='Observer code', padx=10,
+                                             pady=6)  # pady was 8
+        highlight_labelframe.grid(pady=6, sticky='ew')  # pady was 10
+        highlight_labelframe.grid_columnconfigure(0, weight=1)
+        self.observer_selected = tk.StringVar()
+        self.highlight_flag = tk.BooleanVar()
+        self.plot_only_flag = tk.BooleanVar()
+        self.observer_selected.trace('w', lambda name, index,
+                                                 mode: self._entered_star(self.target_list.current()))
+        self.highlight_flag.trace('w', lambda name, index,
+                                              mode: self._entered_star(self.target_list.current()))
+        self.plot_only_flag.trace('w', lambda name, index,
+                                              mode: self._entered_star(self.target_list.current()))
+        self.observer_selected_entry = ttk.Entry(highlight_labelframe, width=8, justify=tk.LEFT,
+                                                 textvariable=self.observer_selected)
+        self.highlight_checkbutton = ttk.Checkbutton(highlight_labelframe, text='Highlight',
+                                                     variable=self.highlight_flag)
+        self.plot_only_checkbutton = ttk.Checkbutton(highlight_labelframe, text='Plot Only',
+                                                     variable=self.plot_only_flag)
+        self.observer_selected_entry.grid(row=0, column=0, rowspan=2, sticky='ew')
+        self.highlight_checkbutton.grid(row=0, column=1, sticky='w')
+        self.plot_only_checkbutton.grid(row=1, column=1, sticky='w')
+
         # ----- Checkbutton frame:
         checkbutton_frame = tk.Frame(control_subframe1)
-        checkbutton_frame.grid(sticky='ew')
+        checkbutton_frame.grid(pady=6, sticky='ew')
         self.grid_flag = tk.BooleanVar()
         self.errorbar_flag = tk.BooleanVar()
         self.plotjd_flag = tk.BooleanVar()
@@ -353,31 +384,8 @@ class ApplicationPylcg(tk.Tk):
 
         self.mdf_obs_data = MiniDataFrame()  # declare here, as will be depended upon later.
 
-        # ----- Observer Code to Highlight or Plot-only labelframe:
-        highlight_labelframe = tk.LabelFrame(control_subframe1, text='Observer code', padx=10, pady=8)
-        highlight_labelframe.grid(pady=10, sticky='ew')
-        highlight_labelframe.grid_columnconfigure(0, weight=1)
-        self.observer_selected = tk.StringVar()
-        self.highlight_flag = tk.BooleanVar()
-        self.plot_only_flag = tk.BooleanVar()
-        self.observer_selected.trace('w', lambda name, index,
-                                                 mode: self._entered_star(self.target_list.current()))
-        self.highlight_flag.trace('w', lambda name, index,
-                                              mode: self._entered_star(self.target_list.current()))
-        self.plot_only_flag.trace('w', lambda name, index,
-                                              mode: self._entered_star(self.target_list.current()))
-        self.observer_selected_entry = ttk.Entry(highlight_labelframe, width=8, justify=tk.LEFT,
-                                                 textvariable=self.observer_selected)
-        self.highlight_checkbutton = ttk.Checkbutton(highlight_labelframe, text='Highlight',
-                                                     variable=self.highlight_flag)
-        self.plot_only_checkbutton = ttk.Checkbutton(highlight_labelframe, text='Plot Only',
-                                                     variable=self.plot_only_flag)
-        self.observer_selected_entry.grid(row=0, column=0, rowspan=2, sticky='ew')
-        self.highlight_checkbutton.grid(row=0, column=1, sticky='w')
-        self.plot_only_checkbutton.grid(row=1, column=1, sticky='w')
-
         # ----- Button frame:
-        button_frame = tk.Frame(control_subframe1, pady=12)
+        button_frame = tk.Frame(control_subframe1, pady=8)  # pady was 12
         button_frame.grid(sticky='ew')
         button_frame.grid_columnconfigure(0, weight=1)
         button_frame.grid_columnconfigure(1, weight=1)
@@ -405,7 +413,7 @@ class ApplicationPylcg(tk.Tk):
         # Subframe quit_frame:
         quit_frame = tk.Frame(self.control_frame, height=60)
         quit_frame.grid_columnconfigure(0, weight=1)
-        quit_frame.grid(row=2, column=0, padx=8, pady=10, sticky='ew')
+        quit_frame.grid(row=2, column=0, padx=8, pady=6, sticky='ew')  # pady was 10
         self.quit_button = ttk.Button(quit_frame, text='QUIT pylcg', width=16, cursor='pirate',
                                       command=self._quit_window)
         self.quit_button.grid(row=0, column=0, sticky='ew')
@@ -429,7 +437,7 @@ class ApplicationPylcg(tk.Tk):
         about_window.transient(self)  # stays on top of main window.
         # about_window.overrideredirect(1)  # plain window.
         about_frame = ttk.Frame(about_window)  # entire window
-        about_frame.grid(row=0, column=0, padx=20, pady=10)
+        about_frame.grid(row=0, column=0, padx=20, pady=6)  # pady was 10
         about_frame.columnconfigure(0, minsize=240)
         label_logo = tk.Label(about_frame, text='\n' + PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='gray')
         label_logo.grid(sticky='ew')
