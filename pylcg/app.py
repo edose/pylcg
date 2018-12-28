@@ -465,20 +465,28 @@ class ApplicationPylcg(tk.Tk):
 
     def _listobservers_window(self):
         window_label = 'LIST OBSERVERS'
-        column_names = ['Obs code', 'Observations', 'Name', 'Affiliation', 'Country']
+        column_names = ['Obs code', 'Observations', 'Name', 'Affiliation', 'Country',
+                        'By Band', 'Days since latest obs']
 
-        # Make data for table:
+        # Make summary dictionary by observer:
+        # key_iterator is a list of tuples, used only to identify each observation by observer:
         key_iterator = zip(self.mdf_obs_data.dict['by'], self.mdf_obs_data.dict['obsName'],
                            self.mdf_obs_data.dict['obsAffil'], self.mdf_obs_data.dict['obsCountry'])
         counter_dict = Counter()
         for key in key_iterator:
             counter_dict[key] += 1
         sorted_raw_data_list = counter_dict.most_common()
-        data_list = []
+        data_list = []  # data_list will be a list of strings to form List Observers table.
+
+        # Make table to display:
         for row in sorted_raw_data_list:
             obscode, name, affiliation, country = row[0]
             count = row[1]
-            data_list.append((obscode, '{:9d}'.format(count), name, affiliation, country))  # all strings
+            by_band_string = self._count_by_band(obscode)
+            days_since_latest_obs = self._days_since_latest_obs(obscode)
+            # Make one line of table:
+            data_list.append((obscode, '{:9d}'.format(count), name, affiliation,
+                              country, by_band_string, '{:9d}'.format(days_since_latest_obs)))
 
         # Make window header & draw window:
         target_name = self.target_list.current()
@@ -498,6 +506,27 @@ class ApplicationPylcg(tk.Tk):
             self.preferences.write_current_config_to_ini_file()
             self.quit()     # stop mainloop
             self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
+
+    def _count_by_band(self, target_obscode):
+        obscodes_and_bands = zip(self.mdf_obs_data.column('by'), self.mdf_obs_data.column('band'))
+        bands_target_obscode = [band for (obscode, band) in obscodes_and_bands if obscode == target_obscode]
+        counter_dict = Counter()
+        for band in bands_target_obscode:
+            counter_dict[band] += 1
+        sorted_bands = counter_dict.most_common()
+        if len(sorted_bands) <= 0:
+            by_band_string = '(no obs)'
+        else:
+            band_strings = [str(count) + ' ' + str(band) for (band, count) in sorted_bands]
+            by_band_string = ',    '.join(band_strings)
+        return by_band_string
+
+    def _days_since_latest_obs(self, target_obscode):
+        obscodes_and_jds = zip(self.mdf_obs_data.column('by'), self.mdf_obs_data.column('JD'))
+        jds_target_obscode = [jd for (obscode, jd) in obscodes_and_jds if obscode == target_obscode]
+        jd_latest_obs = max(jds_target_obscode)
+        days_since_latest_obs = int(round(jd_now() - jd_latest_obs))
+        return days_since_latest_obs
 
     def _add_upload_star_ids(self):
         # tk.Tk.withdraw()
