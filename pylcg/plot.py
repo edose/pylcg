@@ -1,5 +1,6 @@
 import matplotlib
 matplotlib.use('TkAgg')  # this must immediately follow 'import matplotlib', even if IDE complains.
+import matplotlib.dates as mpldates
 
 from datetime import datetime, timedelta, timezone
 
@@ -156,13 +157,25 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
 
     # Format x-axis labels:
     if plot_in_jd:
+        # JD case: set tick spacing, and format the tick labels:
         ax.get_xaxis().get_major_formatter().set_useOffset(False)  # possibly improve this later.
     else:
-        for label in ax.get_xticklabels():
+        # Improve default formatter's poor day spacing:
+        x_locator = mpldates.AutoDateLocator()
+        # TODO: remove too-close ticks here (low-priority).
+        ax.xaxis.set_major_locator(x_locator)
+        x_formatter = mpldates.AutoDateFormatter(x_locator)
+        # Quick improvements to x-axis tick labels in calendar mode:
+        x_formatter.scaled[1 / 24.0] = '%m-%d %H:%M'
+        x_formatter.scaled[1 / (24.0 * 60.0)] = '%m-%d %H:%M'
+        ax.xaxis.set_major_formatter(x_formatter)
+
+        # Rotate all tick labels for readability (date-based labels can be long):
+        for label in ax.get_xticklabels():  # list of matplotlib 'Text' objects
             label.set_ha("right")
             label.set_rotation(30)
 
-    # Arrange the y-axis limits (not trivial as we follow convention of brighter =lesser value magnitudes
+    # Arrange the y-axis limits (not trivial as we follow convention of brighter (lesser-value) magnitudes
     #    to be plotted toward top of plot.
     # We don't use ax.invert_yaxis() as it has side-effect of repeatedly inverting y on successive calls.
     y_low, y_high = ax.set_ylim()
@@ -170,16 +183,19 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
 
     # Used for zoom/pan...declare and register callbacks:
     def on_xlims_change(axes):
-        print("updated xlims: ", ax.get_xlim())
+        print("on_xlims_change(): ", ax.get_xlim())
+        pass
 
     def on_ylims_change(axes):
-        print("updated ylims: ", ax.get_ylim())
+        # print("on_ylims_change(): ", ax.get_ylim())
+        pass
 
     ax.callbacks.connect('xlim_changed', on_xlims_change)
     ax.callbacks.connect('ylim_changed', on_ylims_change)
 
     # Must be last statement of this function:
     canvas.draw()
+    pass
 
 
 def quit_and_destroy(window_object):
