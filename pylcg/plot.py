@@ -1,12 +1,13 @@
 import matplotlib
 matplotlib.use('TkAgg')  # this must immediately follow 'import matplotlib', even if IDE complains.
+import matplotlib.ticker as mplticker
 import matplotlib.dates as mpldates
 
 from datetime import datetime, timedelta, timezone
 
 import tkinter as tk
 from tkinter import ttk
-from math import isnan
+from math import isnan, floor, log10
 
 import pylcg.util as util
 
@@ -29,6 +30,24 @@ SMALL_FONT = ("Verdana", 8)
 PLOT_TITLE_FONT = ('consolas', 20)
 PLOT_TITLE_COLOR = 'gray'
 GRID_COLOR = 'lightgray'
+
+
+def set_jd_formatter(ax):
+    jd_span = abs(ax.get_xlim()[0] - ax.get_xlim()[1])
+    if jd_span >= 5.0:
+        xlabel = 'JD'
+        ax.set_xlabel('JD')
+        x_formatter = mplticker.ScalarFormatter(useOffset=False)  # simple case
+        x_formatter.set_scientific(False)
+    else:
+        jd_min = min(ax.get_xlim())
+        jd_floor = 1000 * floor(jd_min / 1000.)
+        xlabel = 'JD - ' + str(int(jd_floor))
+        digits_to_print = int(min(6, floor(2.0 - log10(jd_span))))
+        format_string = '{:.' + str(digits_to_print) + 'f}'
+        x_formatter = mplticker.FuncFormatter(lambda jd, p: format_string.format(jd - jd_floor))
+    ax.set_xlabel(xlabel)
+    ax.xaxis.set_major_formatter(x_formatter)
 
 
 def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_grid=True,
@@ -157,8 +176,7 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
 
     # Format x-axis labels:
     if plot_in_jd:
-        # JD case: set tick spacing, and format the tick labels:
-        ax.get_xaxis().get_major_formatter().set_useOffset(False)  # possibly improve this later.
+        set_jd_formatter(ax)
     else:
         # Improve default formatter's poor day spacing:
         x_locator = mpldates.AutoDateLocator()
@@ -183,8 +201,9 @@ def redraw_plot(canvas, mdf, star_id, bands_to_plot, show_errorbars=True, show_g
 
     # Used for zoom/pan...declare and register callbacks:
     def on_xlims_change(axes):
-        print("on_xlims_change(): ", ax.get_xlim())
-        pass
+        if plot_in_jd:
+            set_jd_formatter(ax)
+        # print("on_xlims_change(): ", ax.get_xlim())
 
     def on_ylims_change(axes):
         # print("on_ylims_change(): ", ax.get_ylim())
