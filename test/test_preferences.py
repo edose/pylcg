@@ -2,199 +2,152 @@ import os
 from collections import OrderedDict
 from configparser import ConfigParser
 
-import pytest
+# import pytest
 
-from pylcg import preferences
-
+from pylcg import preferences as pr
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
-PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEST_TOP_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, "test")
-TEST_PREFERENCES_INI_FULLPATH = os.path.join(TEST_TOP_DIRECTORY, '$data_for_test', 'preferences.ini')
+TEST_TOP_DIRECTORY = os.path.dirname(os.path.abspath(__file__))  # the dir holding this (test) .py file.
+TEST_DATA_DIRECTORY = os.path.join(TEST_TOP_DIRECTORY, '$data_for_test')
+TEST_PREFERENCES_INI_FULLPATH = os.path.join(TEST_DATA_DIRECTORY, 'preferences.ini')
+# INI_FILE_SECTION_NAME = pr.INI_FILE_SECTION_NAME
+TEST_INI_SECTION_NAME = 'This is the Test Ini Section Name'
 
-TEST_PREFERENCES_INI_TEXT = """
-# /test/$data_for_test/preferences.ini
-[Format preferences]
-Plot height = 701
-Plot width = 125
-Plot style = goobers
-Show Errorbars = Yes
-Show Grid = Yes
-
-[Data preferences]
-Bands = B,V,R,I
-Days = 250
-Last Upload File =
-Last Observer HighLighted =
-Observer List Columns = Obscode,Name,Count,MoreGoobers"""
+HELPER_FUNCTIONS____________________________ = 0
 
 
-HELPER_FUNCTIONS______________________ = 0
-
-
-def refresh_preferences_ini_file(filepath=TEST_PREFERENCES_INI_FULLPATH):
-    with open(filepath, "w") as f:
-        f.write(TEST_PREFERENCES_INI_TEXT)
-
-
-def configs_are_equal(config_1, config_2):
-    """   # Helper function for testing."""
-    if set(config_1.sections()) != set(config_2.sections()):
-        return False
-    for section in config_1.sections():
-        if set(config_1[section].items()) != set(config_2[section].items()):
-            return False
-    return True
-
-
-FUNCTION_TESTS_______________ = 0
-
-
-# def test_copy_config_dict():
-#     # OK 20180823.
-#     # Make config_dicts
-#     section1 = OrderedDict([('option1', '1'), ('option2', '2')])
-#     section2 = OrderedDict([('optiona', 'a'), ('optionb', 'b'), ('optionx', 'x')])
-#     cd = OrderedDict([('section1', section1), ('section2', section2)])
-#     cd_copy = preferences.copy_config_dict(cd)
-#     # Test correctness:
-#     assert config_dicts_are_equal(cd_copy, cd)
-
-
-# def test_update_config_dict():
-#     # Make config_dicts:
-#     section1 = OrderedDict([('option1', '1'), ('option2', '2')])
-#     section2 = OrderedDict([('optiona', 'a'), ('optionb', 'b'), ('optionx', 'x')])
-#     cd_base = OrderedDict([('section1', section1), ('section2', section2)])
-#     sectionx = OrderedDict([('option1', 'new_1')])
-#     sectiony = OrderedDict([('optiona', 'new_a'), ('optionb', ''), ('optionx', 'new_x')])
-#     cd_new_values = OrderedDict([('section1', sectionx), ('section2', sectiony)])
-#     cd_updated = preferences.update_config_dict(cd_base, cd_new_values)
-#     # Test correctness:
-#     section1_target = OrderedDict([('option1', 'new_1'), ('option2', '2')])
-#     section2_target = OrderedDict([('optiona', 'new_a'), ('optionb', 'b'), ('optionx', 'new_x')])
-#     cd_target = OrderedDict([('section1', section1_target), ('section2', section2_target)])
-#     assert config_dicts_are_equal(cd_updated, cd_target)
-
-
-def test_extract_ordered_dict_from_config():
-    # OK 20180823.
-    config_text = """
-    [Section 1]
-      One option = xxx
-    [Section 23]
-      Another option = wxyz
-      Yet another = 480
-    """
+def write_prefset_to_ini_file_for_testing_only(prefset, ini_file_fullpath):
+    # Simple function to avoid calling Prefset.write_to_ini_file(), which itself we need to test below.
     config = ConfigParser()
-    config.read_string(config_text)
-    assert config['Section 23']['Yet another'] == '480'
-    config_dict = preferences.extract_ordered_dict_from_config(config)
-    # NB: ConfigParser option keys always set to LOWER CASE, no matter how the user specifies them. Sigh.
-    config_dict_target = OrderedDict([
-        ('Section 1',  OrderedDict([('one option', 'xxx')])),
-        ('Section 23', OrderedDict([('another option', 'wxyz'), ('yet another', '480')]))])
-    config_target = ConfigParser()
-    config_target.read_dict(config_dict_target)
-    assert configs_are_equal(config, config_target)
+    config[prefset.ini_section_name] = prefset.ordered_dict
+    with open(ini_file_fullpath, 'w') as f:
+        config.write(f)
 
 
-def test_copy_config():
-    # OK 20180823.
-    config_text = """
-    [Section 1]
-      One option = xxx
-    [Section 23]
-      Another option = wxyz
-      Yet another = 480
-    """
-    config = ConfigParser()
-    config.read_string(config_text)
-    assert config['Section 23']['Yet another'] == '480'
-    config_copy = preferences.copy_config(config)
-    assert configs_are_equal(config_copy, config)
-    assert config_copy is not config
+TEST_FUNCTIONS____________________________ = 0
 
 
-CLASS_TESTS___________________ = 0
+class TestClassPrefset:
+    def test_init(self):
+        # Test native .__init__():
+        # Case: return None for absent argument:
+        prefset = pr.Prefset()
+        assert prefset.ordered_dict is None
+        # Case: return new Prefset for proper argument, and must contain a *copy* of argument:
+        test_ordered_dict = OrderedDict([('key1', 'value1'), ('keytwo', 'valuetwo')])
+        prefset = pr.Prefset(test_ordered_dict)
+        assert isinstance(prefset, pr.Prefset)
+        assert prefset.ordered_dict == test_ordered_dict
+        assert prefset.ordered_dict is not test_ordered_dict
 
+    def test_copy(self):
+        test_ordered_dict = OrderedDict([('key1', 'value1'), ('keytwo', 'valuetwo')])
+        prefset = pr.Prefset(test_ordered_dict)
+        prefset_copy = prefset.copy()
+        assert prefset.ordered_dict == prefset_copy.ordered_dict
+        assert prefset.ordered_dict is not prefset_copy.ordered_dict
 
-def test_invalidkeyerror_exception():
-    pass
+    def test_as_updated_by(self):
+        # Case: update with OrderedDict object:
+        test_ordered_dict = OrderedDict([('key1', 'value1'), ('keytwo', 'valuetwo')])
+        test_prefset = pr.Prefset(test_ordered_dict, ini_section_name='Original Section Name')
+        updates_ordered_dict = OrderedDict([('keytwo', 'muahaha'), ('cle_trois', 'donnee_3')])
+        new_prefset = test_prefset.as_updated_by(updates_ordered_dict)
+        expected_prefset = pr.Prefset(OrderedDict([('key1', 'value1'), ('keytwo', 'muahaha'),
+                                                   ('cle_trois', 'donnee_3')]), 'Original Section Name')
+        assert new_prefset.ordered_dict == expected_prefset.ordered_dict
+        assert new_prefset.ordered_dict is not expected_prefset.ordered_dict
+        assert new_prefset.ini_section_name == expected_prefset.ini_section_name
+        # Case: update with Prefset object:
+        test_ordered_dict = OrderedDict([('key1', 'value1'), ('keytwo', 'valuetwo')])
+        test_prefset = pr.Prefset(test_ordered_dict, ini_section_name='Original Section Name')
+        updates_prefset = pr.Prefset(OrderedDict([('keytwo', 'muahaha'), ('cle_trois', 'donnee_3')]),
+                                     'Updates Section Name')
+        new_prefset = test_prefset.as_updated_by(updates_prefset)
+        expected_prefset = pr.Prefset(OrderedDict([('key1', 'value1'), ('keytwo', 'muahaha'),
+                                                   ('cle_trois', 'donnee_3')]), 'Original Section Name')
+        assert new_prefset.ordered_dict == expected_prefset.ordered_dict
+        assert new_prefset.ordered_dict is not expected_prefset.ordered_dict
+        assert new_prefset.ini_section_name == expected_prefset.ini_section_name
 
+    def test_from_ini_file(self):
+        # Case 1a: fullpath is missing from call:
+        prefset = pr.Prefset.from_ini_file()
+        assert prefset is None
 
-def test_class_preferences():
-    # TODO: refactor this into fns that test individual class methods.
+        # Case 1b: no such .ini file available:
+        test_ini_fullpath = os.path.join(TEST_DATA_DIRECTORY, 'not_existXXX.ini')
+        prefset = pr.Prefset.from_ini_file(test_ini_fullpath)
+        assert prefset is None
 
-    # Ensure absolutely that test preferences.ini file is as needed for these tests:
-    refresh_preferences_ini_file()
+        # Case 1c: .ini file cannot be parsed (is not really an .ini file):
+        test_ini_fullpath = os.path.join(TEST_DATA_DIRECTORY, 'not_an_ini_file.ini')
+        prefset = pr.Prefset.from_ini_file(test_ini_fullpath)
+        assert prefset is None
 
-    # Begin by testing constructor (which also tests Preferences.load_ini_file()):
-    s = preferences.Preferences(preferences_ini_path=TEST_PREFERENCES_INI_FULLPATH)
+        # Case 2: full .ini file is available:
+        # Ensure target file is absent:
+        test_ini_fullpath = os.path.join(TEST_DATA_DIRECTORY, 'test_from.ini')
+        try:
+            os.remove(test_ini_fullpath)
+        except OSError:
+            pass
+        # Make Prefset and write to file:
+        test_prefset = pr.Prefset(OrderedDict([('key1', 'value1'), ('keytwo', 'valuetwo')]),
+                                  'Test Section Name')
+        write_prefset_to_ini_file_for_testing_only(test_prefset, test_ini_fullpath)
+        # Read .ini file back in & test it:
+        prefset_read_in = pr.Prefset.from_ini_file(test_ini_fullpath)
+        assert prefset_read_in.ordered_dict == test_prefset.ordered_dict
+        assert prefset_read_in.ordered_dict is not test_prefset.ordered_dict
+        assert prefset_read_in.ini_section_name == test_prefset.ini_section_name
 
-    # Test basic reads via direct reading from config fields:
-    assert s.default_config['Format preferences']['plot height'] == '720'
-    assert s.ini_file_config['Format preferences']['plot height'] == '701'
-    assert s.current_config['Format preferences']['plot height'] == '701'  # same as ini file, to begin
-    assert s.current_config['Data preferences']['bands'] == 'B,V,R,I'
-    assert s.default_config['Data preferences']['bands'] == 'B,V,R,I,Vis'
+    def test_write_to_ini_file(self):
+        test_ini_fullpath = os.path.join(TEST_DATA_DIRECTORY, 'test_write_to.ini')
+        # Ensure target file is absent:
+        try:
+            os.remove(test_ini_fullpath)
+        except OSError:
+            pass
+        # Make Prefset and write to file:
+        test_prefset = pr.Prefset(OrderedDict([('key1', 'value1'), ('keytwowww', 'valuetwoXXX')]),
+                                  'Test Section Name ZZZ')
+        test_prefset.write_to_ini_file(test_ini_fullpath)
+        # Read .ini file back in & test it:
+        prefset_read_in = pr.Prefset.from_ini_file(test_ini_fullpath)
+        assert prefset_read_in.ordered_dict == test_prefset.ordered_dict
+        assert prefset_read_in.ordered_dict is not test_prefset.ordered_dict
+        assert prefset_read_in.ini_section_name == test_prefset.ini_section_name
 
-    # Test reading current preferences via API (as always recommended), values from .current_config:
-    assert s.get('Format preferences', 'pLot hEIGht') == '701'  # option key is case-insensitive
-    assert s.get('Data preferences', 'bands') == 'B,V,R,I'
+    def test_set(self):
+        test_prefset = pr.Prefset(OrderedDict([('key1', 'value1'), ('keytwowww', 'valuetwoXXX')]),
+                                  'Test Section Name SET')
+        # Normal Case: item to set already exists (change item):
+        changed_prefset = test_prefset.copy()
+        successful = changed_prefset.set('keytwowww', 'new value WWW')  # changes in place
+        expected_prefset = pr.Prefset(OrderedDict([('key1', 'value1'), ('keytwowww', 'new value WWW')]),
+                                      'Test Section Name SET')
+        assert successful is True
+        assert changed_prefset.ordered_dict == expected_prefset.ordered_dict
+        assert changed_prefset.ordered_dict is not expected_prefset.ordered_dict
+        assert changed_prefset.ini_section_name == expected_prefset.ini_section_name
+        # Other Case: item to set does not previously exist (NO CHANGE):
+        changed_prefset = test_prefset.copy()
+        successful = changed_prefset.set('new key G', 'new value V')  # changes in place
+        expected_prefset = test_prefset.copy()  # NO CHANGE when new key not in existing keys.
+        assert successful is False
+        assert changed_prefset.ordered_dict == expected_prefset.ordered_dict
+        assert changed_prefset.ordered_dict is not expected_prefset.ordered_dict
+        assert changed_prefset.ini_section_name == expected_prefset.ini_section_name
 
-    # Change a preference via API (not directly into dict as class element):
-    s.set('Format preferences', 'plot height', 650)
-    assert s.get('Format preferences', 'plot height') == '650'  # was changed
-    assert s.default_config['Format preferences']['plot height'] == '720'  # unchanged
-    assert s.ini_file_config['Format preferences']['plot height'] == '701'  # unchanged
-
-    # Test .reset_current_to_default():
-    default_value = s.default_config['Format preferences']['plot height']
-    new_value = '12345678xyz=*&^'
-    assert default_value != new_value
-    s.set('Format preferences', 'plot height', new_value)
-    assert s.get('Format preferences', 'plot height') == new_value
-    s.reset_current_to_default()
-    assert s.get('Format preferences', 'plot height') == default_value
-
-    # Test .write_defaults_to_ini_file(): ___________________________________
-    # First, mess up the preferences.ini file:
-    good_config = ConfigParser()
-    good_config.read_string(preferences.DEFAULT_CONFIG_TEXT)
-    bad_config = preferences.copy_config(good_config)
-    bad_config['Format preferences']['plot height'] = '12344312^^^^^'
-    assert bad_config['Format preferences']['plot height'] != \
-           good_config['Format preferences']['plot height']
-    with open(s.preferences_ini_path, 'w') as f:
-        bad_config.write(f)
-
-    # Verify that preferences.ini file has been messed up:
-    config_from_ini_file = ConfigParser()
-    config_from_ini_file.read(s.preferences_ini_path)
-    assert config_from_ini_file['Format preferences']['plot height'] == \
-           bad_config['Format preferences']['plot height']
-    assert config_from_ini_file['Format preferences']['plot height'] != \
-           good_config['Format preferences']['plot height']
-
-    # Verify that write_defaults_to_ini_file() does reset the file:
-    s.write_defaults_to_ini_file()
-    config_from_ini_file.read(s.preferences_ini_path)
-    assert config_from_ini_file['Format preferences']['plot height'] == \
-           good_config['Format preferences']['plot height']
-
-    # Test .write_current_config_to_ini_file():
-    s.reset_current_to_default()  # already tested above
-    s.write_defaults_to_ini_file()  # already tested above
-    default_plot_height = s.get('Format preferences', 'plot height')
-    s.set('Format preferences', 'plot height', 'XXX123XXX')  # change to current config
-    new_plot_height = s.get('Format preferences', 'plot height')
-    assert new_plot_height != default_plot_height  # verify current config changed
-    s.write_current_config_to_ini_file()
-
-    config_saved = ConfigParser()
-    config_saved.read(s.preferences_ini_path)
-    plot_height_saved = config_saved['Format preferences']['plot height']
-    assert plot_height_saved == new_plot_height
-    assert plot_height_saved != default_plot_height
+    def test_get(self):
+        test_prefset = pr.Prefset(OrderedDict([('key1', 'value1 A'), ('keytwohaha', 'valuetwo B')]),
+                                  'Test Section Name GET')
+        # Case: key is in existing keys:
+        assert test_prefset.get('key1') == 'value1 A'
+        assert test_prefset.get('keytwohaha') == 'valuetwo B'
+        # Case: key is absent from existing keys:
+        assert test_prefset.get('this key is absent') is None
+        assert test_prefset.get('') is None
+        assert test_prefset.get(None) is None

@@ -1,3 +1,4 @@
+import os
 from collections import OrderedDict
 
 import matplotlib
@@ -23,7 +24,6 @@ from pylcg.util import jd_now, MiniDataFrame, TargetList, get_star_ids_from_uplo
     jd_from_any_date_string, jd_from_datetime_utc, datetime_utc_from_jd
 from pylcg.table_window import TableWindow
 
-
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
 """  pylcg, a proposed replacement for AAVSO's venerable but doomed Light Curve Generator LCG V1.
@@ -48,13 +48,15 @@ ALL_BANDS = ['U', 'B', 'V', 'R', 'I', 'Vis.', 'TG', 'J', 'H', 'K', 'TB', 'TR', '
 BETA_CHARACTER = '\u03B2'  # unicode 'small beta'
 
 # For top-right corner of main window (title).
-PYLCG_LOGO = 'pylcg v0.31' + BETA_CHARACTER
+PYLCG_LOGO = 'pylcg v1.00'
 PYLCG_LOGO_FONT = ('consolas', 18)
-PYLCG_SUB_LOGO = 'November 21, 2018'
+PYLCG_LOGO_COLOR = '#eee'  # light gray
+PYLCG_LOGO_BACKGROUND_COLOR = '#47a'  # darkish blue
+PYLCG_SUB_LOGO = 'January 10, 2019'
 PYLCG_SUB_LOGO_FONT = ('consolas', 9)
 
-PYLCG_VERSION = '0.31 BETA'
-PYLCG_VERSION_DATE = 'November 21, 2018'
+PYLCG_VERSION = '1.00'
+PYLCG_VERSION_DATE = 'January 10, 2019'
 
 # For About pop-up window.
 PYLCG_REPO_URL = r'https://github.com/edose/pylcg'
@@ -69,6 +71,26 @@ INVALID_MARK = '\u2718'  # unicode 'heavy ballot X'
 VALIDITY_TO_MARK = {None: EMPTY_MARK, True: VALID_MARK, False: INVALID_MARK}
 VALIDITY_MARK_FONT = ('consolas', 10, 'bold')
 
+PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PREFERENCES_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, 'pylcg')
+PREFERENCES_INI_FULLPATH = os.path.join(PREFERENCES_DIRECTORY, 'preferences.ini')
+PYLCG_DEFAULT_PREFSET = prefs.Prefset(ordered_dict=OrderedDict([
+    ('plot size', 'Smaller'),
+    ('show grid', 'Yes'),
+    ('show errorbars', 'Yes'),
+    ('plot in jd', 'Yes'),
+    ('plot less-thans', 'No'),
+    ('time span days', '500'),
+    ('bands', 'B,V,R,I,Vis'),
+    ('last observer code', ''),
+    ('highlight observer code', 'No')]),
+    ini_section_name='Pylcg Preferences')
+
+PLOT_SIZES = {'smaller': (9.60, 6.80),
+              'larger': (12.00, 8.00),
+              None: (9.60, 6.80)  # the default should preference retrieval fail.
+              }
+
 MIN_JD_ALLOWABLE = jd_from_any_date_string('1/1/1800')  # earliest imaginable plot-start date.
 MAX_JD_ALLOWABLE = jd_now() + 1 * 365.25  # latest plot-start date: one year from now.
 
@@ -82,6 +104,8 @@ class ApplicationPylcg(tk.Tk):
         tk.Tk.wm_title(self, 'pylcg  -- Light Curve Generator in python 3')
         self.resizable(True, True)
 
+        # print(matplotlib.__version__)
+
         # main_frame (fills entire application window):
         self.main_frame = tk.Frame(self)
         self.main_frame.grid()
@@ -89,33 +113,18 @@ class ApplicationPylcg(tk.Tk):
 
         self.make_menu()
 
-        self.preferences = prefs.Preferences()  # load preferences from file .\data\preferences.ini.
-
-        # print(matplotlib.__version__)
+        self.preferences = prefs.Prefset.from_ini_file(PREFERENCES_INI_FULLPATH)
+        if self.preferences is None:
+            self.preferences = PYLCG_DEFAULT_PREFSET.copy()
+            self.preferences.write_to_ini_file(PREFERENCES_INI_FULLPATH)
 
         display_frame = self.subdivide_main_frame()
-
-        plot_frame, toolbar_frame = self.subdivide_display_frame(display_frame)
 
         self.target_list = TargetList()
 
         # Assign plot's figure to plot_frame:
-        fig = Figure(figsize=(9.60, 6.80), dpi=100)
-        ax = fig.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(fig, plot_frame)  # will become FigureCanvasTk() in mpl 3.0?
-        self.canvas.draw()  # for mpl 3.0
-        # To change size, alternatively:
-        #    fig.set_size_inches(new_width, new_height, forward=True); fig.set_dpi(100)
-
-        # Assign navigation buttons to toolbar frame:
-        # note: NavigationToolbar2Tk must be isolated in its own frame.
-#        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)  # for matplotlib 3.0
-        self.toolbar = PylcgNavigationToolbar(self.canvas, toolbar_frame)  # for mpl 3.0 (& own class)
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.toolbar.update()
-        self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-        self.update()
-        self.build_control_frame()
+        plot_size_pref = self.preferences.get('plot size')
+        self.build_entire_display_frame(display_frame, plot_size_pref)
 
     def make_menu(self):
         """  Build the GUI's menu. No return value."""
@@ -128,14 +137,19 @@ class ApplicationPylcg(tk.Tk):
         menubar.add_cascade(label='File', menu=file_menu)
 
         preferences_menu = tk.Menu(menubar, tearoff=0)
-        preferences_menu.add_command(label='Reload User Preferences',
-                                     command=prefs.Preferences.load_ini_file)
+        preferences_menu.add_command(label='Reload User Preferences', command=self._reload_user_prefs)
         preferences_menu.add_command(label='Set all Preferences to Defaults',
-                                     command=prefs.Preferences.reset_current_to_default)
+                                     command=self._write_default_prefs)
+        preferences_menu.add_command(label='LARGER plots (e.g., for desktop monitors) REQUIRES RESTART',
+                                     command=lambda: self._set_plot_size('larger'))
+        preferences_menu.add_command(label='SMALLER plots (e.g., for most laptops) REQUIRES RESTART',
+                                     command=lambda: self._set_plot_size('smaller'))
         menubar.add_cascade(label='Preferences', menu=preferences_menu)
 
-        preferences_menu.entryconfig('Reload User Preferences', state='disabled')
-        preferences_menu.entryconfig('Set all Preferences to Defaults', state='disabled')
+        # preferences_menu.entryconfig('Reload User Preferences')
+        # preferences_menu.entryconfig('Set all Preferences to Defaults')
+        # preferences_menu.entryconfig('Make Plots LARGER (e.g., for desktop monitors) REQUIRES RESTART')
+        # preferences_menu.entryconfig('Make Plots SMALLER (e.g., for most laptops) REQUIRES RESTART')
 
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label='Browse pylcg repo and README', command=web.webbrowse_repo)
@@ -173,6 +187,26 @@ class ApplicationPylcg(tk.Tk):
         plot_frame.grid_columnconfigure(0, weight=1)
         return plot_frame, toolbar_frame
 
+    def build_entire_display_frame(self, display_frame, plot_size_pref):
+
+        plot_frame, toolbar_frame = self.subdivide_display_frame(display_frame)
+        fig = Figure(figsize=PLOT_SIZES[plot_size_pref.lower()], dpi=100)  # = 'default' if pref is None.
+        ax = fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(fig, plot_frame)  # will become FigureCanvasTk() in mpl 3.0?
+        self.canvas.draw()  # for mpl 3.0
+        # To change size, alternatively:
+        #    fig.set_size_inches(new_width, new_height, forward=True); fig.set_dpi(100)
+
+        # Assign navigation buttons to toolbar frame:
+        # note: NavigationToolbar2Tk must be isolated in its own frame.
+        #        toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)  # for matplotlib 3.0
+        self.toolbar = PylcgNavigationToolbar(self.canvas, toolbar_frame)  # for mpl 3.0 (& own class)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.toolbar.update()
+        self.canvas._tkcanvas.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+        self.update()
+        self.build_control_frame()
+
     def build_control_frame(self):
         """  Build the entire tall frame along right side of program's main window.
         :return: [None]
@@ -185,8 +219,8 @@ class ApplicationPylcg(tk.Tk):
         logo_frame = tk.Frame(self.control_frame, bg='#ccc')
         logo_frame.grid_columnconfigure(0, weight=1)
         logo_frame.grid(row=0, column=0, padx=0, pady=0, ipadx=0, sticky='ew')  # padx was 10, pady was 3
-        label_logo = tk.Label(logo_frame, text=PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg='#03b',
-                              bg='#ccc')  # aavso blue on gray
+        label_logo = tk.Label(logo_frame, text=PYLCG_LOGO, font=PYLCG_LOGO_FONT, fg=PYLCG_LOGO_COLOR,
+                              bg=PYLCG_LOGO_BACKGROUND_COLOR)
         label_logo.grid(sticky='sew', ipadx=0, padx=0)
         # label_logo = tk.Label(logo_frame, text=PYLCG_SUB_LOGO, font=PYLCG_SUB_LOGO_FONT, fg='black')
         # label_logo.grid(sticky='sew')
@@ -239,7 +273,7 @@ class ApplicationPylcg(tk.Tk):
         self.days_to_plot.trace('w', lambda name, index, mode: self._set_time_flags(to_gray=True))
         self.timestart.trace('w', lambda name, index, mode: self._set_time_flags(to_gray=True))
         self.timeend.trace('w', lambda name, index, mode: self._set_time_flags(to_gray=True))
-        self.days_to_plot.set(self.preferences.get('Data preferences', 'Days'))
+        self.days_to_plot.set(self.preferences.get('time span days'))
         self.timestart.set('')
         self.timeend.set('{:20.6f}'.format(jd_now()).strip())
         self.days_entry = ttk.Entry(timespan_labelframe, width=6, justify=tk.RIGHT,
@@ -286,7 +320,7 @@ class ApplicationPylcg(tk.Tk):
         band_individually_selectable = [(band, (band in self.band_flags.keys())) for band in ALL_BANDS]
         self.band_individually_selectable = OrderedDict((key, value)
                                                         for (key, value) in band_individually_selectable)
-        self.bands_to_plot = self.preferences.get('Data preferences', 'bands')
+        self.bands_to_plot = self.preferences.get('bands')
 
         self._set_band_flags_from_preferences()
         self.band_u_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='U      ',
@@ -334,6 +368,9 @@ class ApplicationPylcg(tk.Tk):
         self.observer_selected = tk.StringVar()
         self.highlight_flag = tk.BooleanVar()
         self.plot_only_flag = tk.BooleanVar()
+        self.observer_selected.set(self.preferences.get('last observer code'))
+        self.highlight_flag.set(self.preferences.get('highlight observer code').lower() == 'yes')
+        self.plot_only_flag.set(False)
         self.observer_selected.trace('w', lambda name, index,
                                                  mode: self._entered_star(self.target_list.current()))
         self.highlight_flag.trace('w', lambda name, index,
@@ -357,10 +394,10 @@ class ApplicationPylcg(tk.Tk):
         self.errorbar_flag = tk.BooleanVar()
         self.plotjd_flag = tk.BooleanVar()
         self.lessthan_flag = tk.BooleanVar()
-        self.grid_flag.set(True)
-        self.errorbar_flag.set(True)
-        self.plotjd_flag.set(True)
-        self.lessthan_flag.set(False)
+        self.grid_flag.set(self.preferences.get('show grid').lower() == 'yes')
+        self.errorbar_flag.set(self.preferences.get('show errorbars').lower() == 'yes')
+        self.plotjd_flag.set(self.preferences.get('plot in jd').lower() == 'yes')
+        self.lessthan_flag.set(self.preferences.get('plot less-thans').lower() == 'yes')
         self.grid_flag.trace("w", lambda name, index,
                                          mode: self._entered_star(self.target_list.current()))
         self.errorbar_flag.trace("w", lambda name, index,
@@ -419,17 +456,18 @@ class ApplicationPylcg(tk.Tk):
         self.quit_button.grid(row=0, column=0, sticky='ew')
 
     def _preferences_window(self):
-        # 'transient' window style (not modal).
-        # Lay out window elements:
-        preferences_window = tk.Toplevel(self)
-        tk.Label(preferences_window, text='pylcg Preferences').grid(sticky='new')
-        preferences_window.transient(self)
-        frame1 = ttk.Frame(preferences_window)
-        frame1.grid(sticky='ew')
-        show_errorbars = ttk.Checkbutton(frame1, text='show errorbars')
-        show_errorbars.grid(row=0, column=0)
-        show_grid = ttk.Checkbutton(frame1, text='show grid')
-        show_grid.grid(row=1, column=0)
+        pass
+    #     # 'transient' window style (not modal).
+    #     # Lay out window elements:
+    #     preferences_window = tk.Toplevel(self)
+    #     tk.Label(preferences_window, text='pylcg Preferences').grid(sticky='new')
+    #     preferences_window.transient(self)
+    #     frame1 = ttk.Frame(preferences_window)
+    #     frame1.grid(sticky='ew')
+    #     show_errorbars = ttk.Checkbutton(frame1, text='show errorbars')
+    #     show_errorbars.grid(row=0, column=0)
+    #     show_grid = ttk.Checkbutton(frame1, text='show grid')
+    #     show_grid.grid(row=1, column=0)
 
     def _about_window(self):
         # TODO: later, probably refactor this "About" window into a separate class.
@@ -507,6 +545,13 @@ class ApplicationPylcg(tk.Tk):
             self.quit()     # stop mainloop
             self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
+    def _reload_user_prefs(self):
+        self.preferences = prefs.Prefset.from_ini_file(PREFERENCES_INI_FULLPATH)
+        # TODO: Here, redraw everything (?)
+
+    def _write_default_prefs(self):
+        self.preferences.write_to_ini_file(PREFERENCES_INI_FULLPATH)
+
     def _count_by_band(self, target_obscode):
         obscodes_and_bands = zip(self.mdf_obs_data.column('by'), self.mdf_obs_data.column('band'))
         bands_target_obscode = [band for (obscode, band) in obscodes_and_bands if obscode == target_obscode]
@@ -546,7 +591,7 @@ class ApplicationPylcg(tk.Tk):
                 self._plot_star(self.target_list.current(), True)
         else:
             # TODO: Add popup 'No stars found in file [fullpath].'
-            iii = 3
+            pass
 
     def _entered_star(self, star_id):
         if self.target_list.current() is None:

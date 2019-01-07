@@ -1,162 +1,180 @@
-import os
 from collections import OrderedDict
-from configparser import ConfigParser, BasicInterpolation
-
-"""  Module 'preferences.py': handles preferences for pylcg parent.
-Functions: 
-    extract_ordered_dict from config()
-    copy_config()
-Exceptions:
-    InvalidKeysError
-Class:
-    Preferences: container for preferences. Includes default (permanent) and current versions.
-"""
-
+from configparser import ConfigParser, MissingSectionHeaderError, ParsingError
 
 __author__ = "Eric Dose :: New Mexico Mira Project, Albuquerque"
 
-
-PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PREFERENCES_DIRECTORY = PYLCG_ROOT_DIRECTORY  # to make pyinstaller work
-# PREFERENCES_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, "data")
-PREFERENCES_INI_FULLPATH = os.path.join(PREFERENCES_DIRECTORY, 'preferences.ini')
-
-CONFIG_DELIMITERS = ('=',)  # we avoid ':' because we'll want to specify Windows directory paths.
-
-DEFAULT_CONFIG_TEXT = """
-# DEFAULT CONFIG text for pylcg. To be read directly into a python ConfigParser object.
-# Note that section keys are case-sensitive, but individual option keys are not. Hey don't ask me.
-[Format preferences]
-  Plot height = 720
-  Plot width = 1280
-  Plot style =
-  Show Errorbars = Yes
-  Show Grid = Yes
-  
-[Data preferences]
-  Bands = B,V,R,I,Vis
-  Days = 500
-  Last Upload File =
-  Last Observer HighLighted = 
-  Observer List Columns = Obscode,Name,Count
+"""  Preferences module.
+class Prefset: stripped-down container for preferences. 
+    Can read and write to .ini files, but does not hold defaults or file locations (client must do those).
+    USAGES:
+        from Preferences import Prefset
+        p = Prefset(my_ordered_dict)
+        p2 = p.copy()
+        p3 = p.as_updated_by(my_ordered_dict) or (my_prefset_obj)
+        p4 = Prefset.from_ini_file(my_fullpath_string)
+        p5 = p.write_to_ini_file(my_fullpath_string)
+        successful = p.set('my key', 'my new value')  # in-place replacement
+        value = p.get('my key')   
 """
 
+# PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# PREFERENCES_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, 'pylcg')
+# PREFERENCES_INI_FULLPATH = os.path.join(PREFERENCES_DIRECTORY, 'preferences.ini')
 
-SUPPORT__________________________________ = 0
+CONFIG_DELIMITERS = ('=',)  # we avoid ':' preserves our option to include Windows paths in ini files.
+
+# DEFAULT_CONFIG_TEXT = """
+# # DEFAULT CONFIG text for pylcg. To be read directly into a python ConfigParser object.
+# # Note that section keys are case-sensitive, but individual option keys are not. Hey don't ask me.
+# # So we're going to make ALL the keys lower case. (Values can still be in either case.)
+# [style preferences]
+#   plot size = Smaller
+#   show grid = Yes
+#   show errorbars = Yes
+#   plot in jd = Yes
+#   plot less-thans = No
+#
+# [data preferences]
+#   time span days = 500
+#   bands = B,V,R,I,Vis
+#   observer code =
+#   highlight observer code = No
+#   Last Observer Code HighLighted =
+# """
+
+# DEFAULT PREFSET for pylcg. Used if no .ini config file available, and ultimate fallback if all fails.
+# In the python .ini-file handler (configparser package), Section keys are case-sensitive,
+#    but Item keys are case-insensitive
+#    (see https://docs.python.org/3.6/library/configparser.html?highlight=configparser#module-configparser
+#    section 14.2.4) Hey, don't ask me what they were smoking.
+# So we will lump all preference items into a single Section, arbitrarily named as below.
+# DEFAULT_PREFSET_ORDERED_DICT = OrderedDict([
+#     ('plot size', 'Smaller'),
+#     ('show grid', 'Yes'),
+#     ('show errorbars', 'Yes'),
+#     ('plot in jd', 'Yes'),
+#     ('plot less-thans', 'No'),
+#     ('time span days', '500'),
+#     ('bands', 'B,V,R,I,Vis'),
+#     ('observer code', ''),
+#     ('highlight observer code', 'No'),
+#     ('last observer code', 'No')
+# ])
+# INI_FILE_SECTION_NAME = 'All Pylcg Preferences'
 
 
-def extract_ordered_dict_from_config(source_config):
-    """  Extracts a (nested) python OrderedDict from the contents of a ConfigParser object.
-    Why python doesn't just provide this is unfathomable.
-    :param source_config: config object from which to extract content [ConfigParser object].
-    :return: python OrderedDict of config's contents [OrderedDict object].
+NEW_PREFSET_CODE__________________________________ = 0
+
+
+class Prefset:
+    """ A collection of user preferences to be used by the main app.
     """
-    config_dict = OrderedDict([(s, OrderedDict(source_config.items(s))) for s in source_config.sections()])
-    # config_dict = {s: dict(source_config.items(s)) for s in source_config.sections()}  #unordered py<3.7.
-    return config_dict
+    def __init__(self, ordered_dict=None, ini_section_name='Sole Section'):
+        """  Base constructor. Makes a new Prefset from **a copy of** passed-in OrderedDict object.
+        :param ordered_dict: [OrderedDict object]
+        :param ini_section_name:
+        """
+        if ordered_dict is None:
+            self.ordered_dict = None
+            self.ini_section_name = ''
+        elif isinstance(ordered_dict, OrderedDict):
+            self.ordered_dict = ordered_dict.copy()  # contains None if None was passed in
+            self.ini_section_name = ini_section_name
+        else:
+            self.ordered_dict = None
+            self.ini_section_name = ''
 
+    def copy(self):
+        """  Returns independent copy of this prefset [Prefset object]. """
+        return Prefset(self.ordered_dict.copy(), self.ini_section_name)
 
-def copy_config(source_config):
-    """  Necessary as python weirdly (ok, typically) forgot BOTH to implement a .copy() method
-         and to expose the wrapped OrderedDict --- <eye roll> also... the OrderedDict's field keys
-         all get changed to lower case for no reason. </eye roll>).
-         Section keys are case-sensitive, but option keys are case-insensitive. Unbelievable.
-    :param source_config: configuration to copy [ConfigParser object].
-    :return: deep, independent copy of source_config [new ConfigParser object].
-    """
-    config_dict = extract_ordered_dict_from_config(source_config)
-    config_copy = ConfigParser()
-    config_copy.read_dict(config_dict)
-    return config_copy
+    def as_updated_by(self, newer_entries=None):
+        """  Returns new prefset composed of this prefset as updated by a second prefset or OrderedDict.
+             This is really a constructor, but not a class method (as it depends on a specific Prefset obj).
+             Does *not* change either this Prefset (self) or the argument object.
+        :param newer_entries: [Prefset object *OR* OrderedDict object]
+        :return: new prefset, from this prefset as updated with newer entries [Prefset object]
+            Returns None if anything but Prefset or OrderedDict is erroneously passed in.
+        """
+        if newer_entries is None:
+            return self.copy()
+        # Prepare and do update of OrderedDict object contained in Prefset:
+        updated_ordered_dict = self.ordered_dict.copy()  # next to be updated...
+        if isinstance(newer_entries, OrderedDict):
+            updated_ordered_dict.update(newer_entries)  # .update() works in place w/o return (groan).
+        elif isinstance(newer_entries, Prefset):
+            updated_ordered_dict.update(newer_entries.ordered_dict)
+        else:
+            return Prefset(None)
+        return Prefset(updated_ordered_dict, self.ini_section_name)
 
-
-def overlay_config_with_config(config_to_change, config_with_new_values):
-    """  Make new config_dict by overwriting options in config_dict_to_change by any matching
-             options in config_dict_new_values.
-         But never overwrites with null or missing values even if present in config_dict_new_values.
-         Does NOT alter either config_dict passed in as parameters.
-    :param config_to_change: this is the base config to be updated [ConfigParser object].
-    :param config_with_new_values: this contains the changes to make [ConfigParser object].
-    :return: COPY of updated config_dict_to_change [nested OrderedDict].
-    """
-    updated_config = copy_config(config_to_change)
-    for section_key in config_with_new_values.sections():
-        for option_key in config_with_new_values[section_key]:
-            value = config_with_new_values[section_key][option_key]
-            if value is not None:
-                if value.strip() != '':
-                    try:
-                        updated_config[section_key][option_key] = value
-                    except KeyError:
-                        raise InvalidKeysError((section_key, option_key))
-    return updated_config
-
-
-CLASSES_EXCEPTIONS__________________________________ = 0
-
-
-class Error(Exception):
-    pass
-
-
-class InvalidKeysError(Error):
-    """  Any key pair not included in defaults is disallowed and must raise this Exception. """
-    pass
-
-
-class Preferences:
-    def __init__(self, preferences_ini_path=PREFERENCES_INI_FULLPATH, preferences_ini_string=None):
-        """  The repository for pylcg preferences: default (permanent), ini_file, and current. """
-        self.preferences_ini_path = preferences_ini_path
-        self.preferences_ini_string = preferences_ini_string
-
-        # Default config is defined above in this module, and is IMMUTABLE (read-only):
-        self.default_config = ConfigParser(allow_no_value=True, delimiters=CONFIG_DELIMITERS,
-                                           interpolation=BasicInterpolation())
-        self.default_config.read_string(DEFAULT_CONFIG_TEXT)
-
-        # ini_file config will strictly track contents of preferences.ini file.
-        self.ini_file_config = ConfigParser(allow_no_value=True, delimiters=CONFIG_DELIMITERS,
-                                            interpolation=BasicInterpolation())
-        self.load_ini_file()
-
-        # Current config starts as a copy of ini_file config, later updated as needed by the user (via GUI).
-        self.current_config = copy_config(self.ini_file_config)
-
-    def load_ini_file(self):
-        ini_file_loaded = False
-        if os.path.exists(self.preferences_ini_path):
-            if os.path.isfile(self.preferences_ini_path):
-                self.ini_file_config.read(self.preferences_ini_path)
-                ini_file_loaded = True
-        if not ini_file_loaded:
-            self.write_defaults_to_ini_file()
-
-    def set(self, section_key, option_key, value):
-        if value is not None:
-            try:
-                self.current_config[section_key][option_key.lower()] = str(value)
-            except KeyError:
-                raise InvalidKeysError((section_key, option_key))
-
-    def get(self, section_key, option_key):
-        """Gets option value from current_dict. The function most used by calling routines."""
+    @classmethod
+    def from_ini_file(cls, fullpath=None):
+        """ Reads an .ini file, returns Prefset (or None if .ini file doesn't exist).
+        Usage: ini_prefset = Prefset.from_ini_file(fullpath)
+        :param fullpath: usually omitted, but if present defines .ini file to be read in.
+        :return: preference set from .ini file, or None if .ini file can't be read [Prefset object or None].
+        """
+        if fullpath is None:
+            return None
+        ini_file_ordered_dict = OrderedDict()
+        config = ConfigParser(delimiters=CONFIG_DELIMITERS)
         try:
-            value = self.current_config[section_key][option_key.lower()]
-        except KeyError:
-            raise InvalidKeysError((section_key, option_key))
-        return value
+            return_value = config.read(fullpath)
+        except (MissingSectionHeaderError, ParsingError):
+            return None
+        if len(return_value) == 0:  # file not successfully parsed (v.probably absent).
+            return None
+        # If here, we have found a .ini file, now parse it.
+        for section_key in config.sections():
+            for item_key in config[section_key]:
+                value = config[section_key][item_key]
+                ini_file_ordered_dict[item_key] = value
+        new_prefset = cls(ini_file_ordered_dict, config.sections()[0])
+        return new_prefset
 
-    def write_current_config_to_ini_file(self):
-        """  Always runs when the calling program is closing, but could be called any time."""
-        with open(self.preferences_ini_path, 'w') as f:
-            self.current_config.write(f)
+    def write_to_ini_file(self, fullpath=None):
+        """ Causes this Prefset object to write itself to an .ini file.
+        Usage: current_prefset.write_to_ini_file(fullpath='C:/...')
+        :param fullpath: fullpath of the .ini file to write to.
+        :return: [No return value]
+        """
+        config = ConfigParser(delimiters=CONFIG_DELIMITERS)
+        config[self.ini_section_name] = self.ordered_dict
+        with open(fullpath, 'w') as f:
+            config.write(f)
 
-    def write_defaults_to_ini_file(self):
-        """  Facility to recover corrupted preferences.ini, or at user discretion.
-             This goes inside class Preferences because it needs access to the relevant ini file path."""
-        with open(self.preferences_ini_path, 'w') as f:
-            self.default_config.write(f)
+    def set(self, key, value, force_string=True):
+        """  Set preference with given key to given value. No effect if given key not in Prefset keys.
+        Usage: my_prefset.set('obscode', 'DERA'). *** IN-PLACE alteration. ***
+        :param key: key of preference to set [string].
+        :param value: value of preference to set [ideally a string].
+        :param force_string: True if value must be (converted to and) stored as string [boolean].
+        :return: True if success, else False.
+        """
+        if key in self.ordered_dict.keys():
+            if force_string:
+                self.ordered_dict[key] = str(value)
+            else:
+                self.ordered_dict[key] = value
+            return True
+        else:
+            return False
 
-    def reset_current_to_default(self):
-        self.current_config = copy_config(self.default_config)
+    def get(self, key):
+        """ Returns corresponding value if key exists, else return None.
+        Usage: value = my_prefset.get('obscode')
+        """
+        return self.ordered_dict.get(key, None)
+
+    # def remove(self, key):
+    #     """ Removes corresponding setting (key and value) from this Prefset. Rarely used.
+    #     Usage: successful = self.remove('obscode')
+    #     :param: key: key of setting to remove [string]
+    #     :return: True if successful, else False [boolean].
+    #     """
+    #     try:
+    #         del self.ordered_dict[key]
+    #     except KeyError:
+    #         return False
+    #     return True
