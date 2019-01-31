@@ -115,7 +115,7 @@ class ApplicationPylcg(tk.Tk):
         self.build_menu()
 
         ini_file_prefset = prefs.Prefset.from_ini_file(PREFERENCES_INI_FULLPATH)
-        if ini_file_prefset is None:
+        if ini_file_prefset is None:  # fallback to default preferences set if can't read ini file.
             ini_file_prefset = PYLCG_DEFAULT_PREFSET.copy()
             ini_file_prefset.write_to_ini_file(PREFERENCES_INI_FULLPATH)
         self.current_preferences = ini_file_prefset.copy()
@@ -464,7 +464,7 @@ class ApplicationPylcg(tk.Tk):
         quit_frame = tk.Frame(self.control_frame, height=60)
         quit_frame.grid_columnconfigure(0, weight=1)
         quit_frame.grid(row=2, column=0, padx=8, pady=6, sticky='ew')  # pady was 10
-        self.quit_button = ttk.Button(quit_frame, text='QUIT pylcg', width=16, cursor='pirate',
+        self.quit_button = ttk.Button(quit_frame, text='QUIT & save preferences', width=16, cursor='pirate',
                                       command=self._quit_window)
         self.quit_button.grid(row=0, column=0, sticky='ew')
 
@@ -568,7 +568,7 @@ class ApplicationPylcg(tk.Tk):
         self.current_preferences.set('plot less-thans', 'Yes' if self.lessthan_flag.get() else 'No')
         self.current_preferences.set('time span days', str(self.days_to_plot.get()))
         self.current_preferences.set('bands', ','.join(self.bands_to_plot))
-        self.current_preferences.set('last observer code', self.observer_selected.get())
+        self.current_preferences.set('last observer code', self.observer_selected.get().strip())
         self.current_preferences.set('highlight observer code',
                                      'Yes' if self.highlight_flag.get() else 'No')
         self.current_preferences.set('plot observer code only',
@@ -725,7 +725,7 @@ class ApplicationPylcg(tk.Tk):
         :param to_gray: True if flag marks to be written in gray (not yet used in a plot) [boolean].
         :return: [no return]
         """
-        self._update_current_preferences()
+        # self._update_current_preferences()  # commented out to preserve current prefs until leave app (?).
         num_days_entry = self.days_to_plot.get()
         if num_days_entry.strip() == '':
             self.days_valid = None
