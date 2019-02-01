@@ -141,16 +141,11 @@ class ApplicationPylcg(tk.Tk):
         preferences_menu.add_command(label='Reload User Preferences', command=self._reload_user_prefs)
         preferences_menu.add_command(label='Set all Preferences to Defaults',
                                      command=self._write_default_prefs_to_ini_file)
-        preferences_menu.add_command(label='LARGER plots (e.g., for desktop monitors)',
-                                     command=lambda: self._set_plot_size_and_redraw('larger'))
-        preferences_menu.add_command(label='SMALLER plots (e.g., for most laptops)',
-                                     command=lambda: self._set_plot_size_and_redraw('smaller'))
+        preferences_menu.add_command(label='LARGER plots (e.g., for desktop monitors) REQUIRES RESTART',
+                                     command=lambda: self._set_plot_size('larger'))
+        preferences_menu.add_command(label='SMALLER plots (e.g., for most laptops) REQUIRES RESTART',
+                                     command=lambda: self._set_plot_size('smaller'))
         menubar.add_cascade(label='Preferences', menu=preferences_menu)
-
-        # preferences_menu.entryconfig('Reload User Preferences')
-        # preferences_menu.entryconfig('Set all Preferences to Defaults')
-        # preferences_menu.entryconfig('Make Plots LARGER (e.g., for desktop monitors) REQUIRES RESTART')
-        # preferences_menu.entryconfig('Make Plots SMALLER (e.g., for most laptops) REQUIRES RESTART')
 
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label='Browse pylcg repo and README', command=web.webbrowse_repo)
@@ -261,7 +256,6 @@ class ApplicationPylcg(tk.Tk):
         self.errorbar_flag = tk.BooleanVar()
         self.plotjd_flag = tk.BooleanVar()
         self.lessthan_flag = tk.BooleanVar()
-        self.bands_to_plot = self.current_preferences.get('bands')
         self.observer_selected = tk.StringVar()
         self.highlight_flag = tk.BooleanVar()
         self.plot_only_flag = tk.BooleanVar()
@@ -307,7 +301,7 @@ class ApplicationPylcg(tk.Tk):
         self.timeend_entry.grid(row=2, column=1, columnspan=2, sticky='ew')
         self.timeend_flag_label.grid(row=2, column=3)
         # self._set_time_flags(to_gray=True)  # ensure flags are set before leaving setup.
-        use_now_button = ttk.Button(timespan_labelframe, text='End = now', command=self._use_now)
+        use_now_button = ttk.Button(timespan_labelframe, text='End = now', command=self._set_timeend_to_now_jd)
         use_now_button.grid(row=3, column=1, columnspan=2, sticky='ew')
 
         # ----- Bands labelframe:
@@ -332,35 +326,34 @@ class ApplicationPylcg(tk.Tk):
         self.band_individually_selectable = OrderedDict((key, value)
                                                         for (key, value) in band_individually_selectable)
 
-        # self.bands_to_plot = self.current_preferences.get('bands')
-        self._set_band_flags_from_list()
+        self._set_band_flags_from_prefs()
         self.band_u_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='U      ',
                                                   variable=self.band_flags['U'],
-                                                  command=self._update_bands_to_plot_then_plot)
+                                                  command=self._get_star_id_then_plot)
         self.band_b_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='B',
                                                   variable=self.band_flags['B'],
-                                                  command=self._update_bands_to_plot_then_plot)
+                                                  command=self._get_star_id_then_plot)
         self.band_v_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='V',
                                                   variable=self.band_flags['V'],
-                                                  command=self._update_bands_to_plot_then_plot)
+                                                  command=self._get_star_id_then_plot)
         self.band_r_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='R',
                                                   variable=self.band_flags['R'],
-                                                  command=self._update_bands_to_plot_then_plot)
+                                                  command=self._get_star_id_then_plot)
         self.band_i_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='I',
                                                   variable=self.band_flags['I'],
-                                                  command=self._update_bands_to_plot_then_plot)
+                                                  command=self._get_star_id_then_plot)
         self.band_vis_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='Vis.',
                                                     variable=self.band_flags['Vis.'],
-                                                    command=self._update_bands_to_plot_then_plot)
+                                                    command=self._get_star_id_then_plot)
         self.band_tg_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='TG',
                                                    variable=self.band_flags['TG'],
-                                                   command=self._update_bands_to_plot_then_plot)
+                                                   command=self._get_star_id_then_plot)
         self.band_others_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='others',
                                                        variable=self.band_flags['others'],
-                                                       command=self._update_bands_to_plot_then_plot)
+                                                       command=self._get_star_id_then_plot)
         self.band_all_checkbutton = ttk.Checkbutton(self.bands_labelframe, text='ALL',
                                                     variable=self.band_flags['ALL'],
-                                                    command=self._update_bands_to_plot_then_plot)
+                                                    command=self._get_star_id_then_plot)
         self.band_u_checkbutton.grid(row=0, column=0, sticky='w')
         self.band_b_checkbutton.grid(row=1, column=0, sticky='w')
         self.band_v_checkbutton.grid(row=2, column=0, sticky='w')
@@ -376,9 +369,6 @@ class ApplicationPylcg(tk.Tk):
                                              pady=6)  # pady was 8
         highlight_labelframe.grid(pady=6, sticky='ew')  # pady was 10
         highlight_labelframe.grid_columnconfigure(0, weight=1)
-        # self.observer_selected = tk.StringVar()
-        # self.highlight_flag = tk.BooleanVar()
-        # self.plot_only_flag = tk.BooleanVar()
         self.observer_selected.set(self.current_preferences.get('last observer code'))
         self.highlight_flag.set(self.current_preferences.get('highlight observer code').lower() == 'yes')
         self.plot_only_flag.set(self.current_preferences.get('plot observer code only').lower() == 'yes')
@@ -401,10 +391,6 @@ class ApplicationPylcg(tk.Tk):
         # ----- Checkbutton frame:
         checkbutton_frame = tk.Frame(control_subframe1)
         checkbutton_frame.grid(pady=6, sticky='ew')
-        # self.grid_flag = tk.BooleanVar()
-        # self.errorbar_flag = tk.BooleanVar()
-        # self.plotjd_flag = tk.BooleanVar()
-        # self.lessthan_flag = tk.BooleanVar()
         self.grid_flag.set(self.current_preferences.get('show grid').lower() == 'yes')
         self.errorbar_flag.set(self.current_preferences.get('show errorbars').lower() == 'yes')
         self.plotjd_flag.set(self.current_preferences.get('plot in jd').lower() == 'yes')
@@ -447,18 +433,14 @@ class ApplicationPylcg(tk.Tk):
                                 command=lambda: web.webbrowse_vsx(self.star_entered.get()))
         button_webobs = ttk.Button(button_frame, text='Observations',
                                    command=lambda: web.webbrowse_webobs(self.star_entered.get()))
-        # button_clearcache = ttk.Button(button_frame, text='Clear cache',
-        #                                command=web.get_vsx_obs.cache_clear)
         button_preferences.grid(row=0, column=0, sticky='ew')
         button_listobservers.grid(row=1, column=0, sticky='ew')
         button_vsx.grid(row=0, column=1, sticky='ew')
         button_webobs.grid(row=1, column=1, sticky='ew')
-        # button_clearcache.grid(row=2, column=1, sticky='ew')
         button_preferences.state(['disabled'])
         button_listobservers.state(['!disabled'])  # enabled
         button_vsx.state(['!disabled'])  # enabled
         button_webobs.state(['!disabled'])  # enabled
-        # button_clearcache.state(['!disabled'])  # enabled
 
         # Subframe quit_frame:
         quit_frame = tk.Frame(self.control_frame, height=60)
@@ -553,30 +535,29 @@ class ApplicationPylcg(tk.Tk):
         """  Popup window to ensure user really wants to quit. Stops entire program if user confirms.
         :return [None]
         """
-        # self.quit_button.config(state='disabled')
         if tkm.askokcancel('Quit?', 'You really want to quit pylcg?'):
-            self._update_current_preferences()
+            self._get_current_preferences_from_control_frame()
             self.current_preferences.write_to_ini_file(PREFERENCES_INI_FULLPATH)
             self.quit()     # stop mainloop
             self.destroy()  # prevent Fatal Python Error: PyEval_RestoreThread: NULL tstate
 
-    def _update_current_preferences(self):
-        # Skip 'plot size', as this must otherwise be kept updated at all times.
+    def _get_current_preferences_from_control_frame(self):
+        # Skip 'plot size', as it is already kept in string form.
         self.current_preferences.set('show grid', 'Yes' if self.grid_flag.get() else 'No')
         self.current_preferences.set('show errorbars', 'Yes' if self.errorbar_flag.get() else 'No')
         self.current_preferences.set('plot in jd', 'Yes' if self.plotjd_flag.get() else 'No')
         self.current_preferences.set('plot less-thans', 'Yes' if self.lessthan_flag.get() else 'No')
         self.current_preferences.set('time span days', str(self.days_to_plot.get()))
-        self.current_preferences.set('bands', ','.join(self.bands_to_plot))
+        self.current_preferences.set('bands', self._make_band_prefs_from_flags())
         self.current_preferences.set('last observer code', self.observer_selected.get().strip())
         self.current_preferences.set('highlight observer code',
                                      'Yes' if self.highlight_flag.get() else 'No')
         self.current_preferences.set('plot observer code only',
                                      'Yes' if self.plot_only_flag.get() else 'No')
 
-    def _set_plot_size_and_redraw(self, plot_size_string):
-        self.current_preferences.set('plot size', plot_size_string)
-        self.build_entire_display_frame()
+    def _set_plot_size(self, plot_size_string):
+        self.current_preferences.set('plot size', plot_size_string.strip())
+        # self.build_entire_display_frame()
 
     def _reload_user_prefs(self):
         self.current_preferences = prefs.Prefset.from_ini_file(PREFERENCES_INI_FULLPATH)
@@ -628,7 +609,7 @@ class ApplicationPylcg(tk.Tk):
             pass
 
     def _entered_star(self, star_id):
-        self._update_current_preferences()
+        self._get_current_preferences_from_control_frame()
         if self.target_list.current() is None:
             if star_id is not None:
                 self.target_list.add(star_id)
@@ -656,37 +637,45 @@ class ApplicationPylcg(tk.Tk):
         self.button_prev.config(state=(tk.NORMAL if self.target_list.prev_exists() else tk.DISABLED))
         self.button_next.config(state=(tk.NORMAL if self.target_list.next_exists() else tk.DISABLED))
 
-    def _use_now(self):
+    def _set_timeend_to_now_jd(self):
         """  Set GUI's End JD entry box to current JD. """
         self.timeend.set('{:20.6f}'.format(jd_now()).strip())
 
-    def _update_bands_to_plot_then_plot(self):
+    def _get_star_id_then_plot(self):
         """  Provides a single function call to GUI components as they require. """
-        self._update_bands_to_plot()
-        self._update_current_preferences()
+        print('Now: ' + str(self._get_bands_to_plot()))
         if self.target_list.current() is not None:
             if self.target_list.current().strip() != '':
-                self._plot_star(self.target_list.current())  # update plot, but data already downloaded.
+                # update plot; data already downloaded.
+                self._plot_star(self.target_list.current())
 
-    def _update_bands_to_plot(self):
-        """  Memorizes band checkbutton seetings before use in plotting.
-             Typically called whenever user changes a band checkbutton.
-             :return [None]
+    def _get_bands_to_plot(self):
+        """  Memorizes band checkbutton settings before use in plotting.
+             Now called only when about to draw a plot.
+             :return the bands that should be included in plot [list of strings].
         """
         if self.band_flags['ALL'].get() is True:
-            self.bands_to_plot = ALL_BANDS
+            bands_to_plot = ALL_BANDS
         else:
-            self.bands_to_plot = [band for band in ALL_BANDS
-                                  if (self.band_individually_selectable[band] is True)
-                                  and (self.band_flags[band].get() is True)]
+            bands_to_plot = [band for band in ALL_BANDS
+                             if (self.band_individually_selectable[band] is True)
+                             and (self.band_flags[band].get() is True)]
             if self.band_flags['others'].get() is True:
-                self.bands_to_plot.extend([band for band in ALL_BANDS
-                                           if self.band_individually_selectable[band] is False])
-        # print(len(self.bands_to_plot), self.bands_to_plot)
+                bands_to_plot.extend([band for band in ALL_BANDS
+                                      if self.band_individually_selectable[band] is False])
+        return bands_to_plot
 
-    def _set_band_flags_from_list(self):
+    def _make_band_prefs_from_flags(self):
+        # NB: bands in prefs are a comma-sep string, whereas flags are boolean.
+        band_pref_list = [band.strip() for band in self.band_flags.keys()
+                          if self.band_flags[band].get() is True]
+        return ','.join(band_pref_list)
+
+    def _set_band_flags_from_prefs(self):
+        # NB: bands in prefs are a comma-sep string, whereas flags are boolean.
+        band_list_from_prefs = [band.strip() for band in self.current_preferences.get('bands').split(',')]
         for band in self.band_flags.keys():
-            self.band_flags[band].set(band in self.bands_to_plot)
+            self.band_flags[band].set(band in band_list_from_prefs)
 
     def _get_plot_start_end(self):
         try:
@@ -725,7 +714,7 @@ class ApplicationPylcg(tk.Tk):
         :param to_gray: True if flag marks to be written in gray (not yet used in a plot) [boolean].
         :return: [no return]
         """
-        # self._update_current_preferences()  # commented out to preserve current prefs until leave app (?).
+        # self._get_current_preferences_from_control_frame()  # commented out to preserve current prefs until leave app (?).
         num_days_entry = self.days_to_plot.get()
         if num_days_entry.strip() == '':
             self.days_valid = None
@@ -774,10 +763,9 @@ class ApplicationPylcg(tk.Tk):
         :param must_get_obs_data: True iff new data needs to be downloaded from AAVSO.
         :return [None]
         """
-        self._update_bands_to_plot()  # ensure sync with checkbuttons.
-        self._update_current_preferences()
         if star_id.strip() == '':
             return
+        bands_to_plot = self._get_bands_to_plot()  # ensure sync w/ checkbuttons; will be list of strings.
         jd_start, jd_end = self._get_plot_start_end()
         if (jd_start is None) or (jd_end is None):
             return
@@ -786,7 +774,7 @@ class ApplicationPylcg(tk.Tk):
                                                 jd_start=jd_start, jd_end=jd_end,
                                                 num_days=jd_end - jd_start)
         # TODO: connect obscode_to_highlight to a tk control variable.
-        plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=self.bands_to_plot,
+        plotter.redraw_plot(self.canvas, self.mdf_obs_data, star_id, bands_to_plot=bands_to_plot,
                             show_errorbars=self.errorbar_flag.get(), show_grid=self.grid_flag.get(),
                             show_lessthans=self.lessthan_flag.get(),
                             observer_selected=self.observer_selected.get(),

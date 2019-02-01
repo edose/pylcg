@@ -17,50 +17,7 @@ class Prefset: stripped-down container for preferences.
         value = p.get('my key')   
 """
 
-# PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# PREFERENCES_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, 'pylcg')
-# PREFERENCES_INI_FULLPATH = os.path.join(PREFERENCES_DIRECTORY, 'preferences.ini')
-
 CONFIG_DELIMITERS = ('=',)  # we avoid ':' preserves our option to include Windows paths in ini files.
-
-# DEFAULT_CONFIG_TEXT = """
-# # DEFAULT CONFIG text for pylcg. To be read directly into a python ConfigParser object.
-# # Note that section keys are case-sensitive, but individual option keys are not. Hey don't ask me.
-# # So we're going to make ALL the keys lower case. (Values can still be in either case.)
-# [style preferences]
-#   plot size = Smaller
-#   show grid = Yes
-#   show errorbars = Yes
-#   plot in jd = Yes
-#   plot less-thans = No
-#
-# [data preferences]
-#   time span days = 500
-#   bands = B,V,R,I,Vis
-#   observer code =
-#   highlight observer code = No
-#   Last Observer Code HighLighted =
-# """
-
-# DEFAULT PREFSET for pylcg. Used if no .ini config file available, and ultimate fallback if all fails.
-# In the python .ini-file handler (configparser package), Section keys are case-sensitive,
-#    but Item keys are case-insensitive
-#    (see https://docs.python.org/3.6/library/configparser.html?highlight=configparser#module-configparser
-#    section 14.2.4) Hey, don't ask me what they were smoking.
-# So we will lump all preference items into a single Section, arbitrarily named as below.
-# DEFAULT_PREFSET_ORDERED_DICT = OrderedDict([
-#     ('plot size', 'Smaller'),
-#     ('show grid', 'Yes'),
-#     ('show errorbars', 'Yes'),
-#     ('plot in jd', 'Yes'),
-#     ('plot less-thans', 'No'),
-#     ('time span days', '500'),
-#     ('bands', 'B,V,R,I,Vis'),
-#     ('observer code', ''),
-#     ('highlight observer code', 'No'),
-#     ('last observer code', 'No')
-# ])
-# INI_FILE_SECTION_NAME = 'All Pylcg Preferences'
 
 
 NEW_PREFSET_CODE__________________________________ = 0
