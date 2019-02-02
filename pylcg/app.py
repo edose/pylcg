@@ -71,8 +71,8 @@ INVALID_MARK = '\u2718'  # unicode 'heavy ballot X'
 VALIDITY_TO_MARK = {None: EMPTY_MARK, True: VALID_MARK, False: INVALID_MARK}
 VALIDITY_MARK_FONT = ('consolas', 10, 'bold')
 
-PYLCG_ROOT_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PREFERENCES_DIRECTORY = os.path.join(PYLCG_ROOT_DIRECTORY, 'pylcg')
+PYLCG_CODE_DIRECTORY = os.path.dirname(os.path.abspath(__file__))  # where this file app.py sits.
+PREFERENCES_DIRECTORY = PYLCG_CODE_DIRECTORY  # where preferences.ini will sit
 PREFERENCES_INI_FULLPATH = os.path.join(PREFERENCES_DIRECTORY, 'preferences.ini')
 PYLCG_DEFAULT_PREFSET = prefs.Prefset(ordered_dict=OrderedDict([
     ('plot size', 'Smaller'),
@@ -643,7 +643,6 @@ class ApplicationPylcg(tk.Tk):
 
     def _get_star_id_then_plot(self):
         """  Provides a single function call to GUI components as they require. """
-        print('Now: ' + str(self._get_bands_to_plot()))
         if self.target_list.current() is not None:
             if self.target_list.current().strip() != '':
                 # update plot; data already downloaded.
