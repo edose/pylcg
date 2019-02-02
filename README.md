@@ -38,37 +38,54 @@ To plot all targets in a AAVSO Enhanced (CCD) or Visual Upload file (very useful
 4. You can enter a target name at any time, and the name will be submitted in the target list as though it had been part of your upload file.
 
 **Settings**: You can change any settings at any time. The plot updates, and the settings carry over to the next plots.
-* Bands.
-* Grid: select to show a grid over the plot.
-* Error bars: select to show error bars on each point, as submitted by the observer.
-* plot in JD: select for Julian Data on the horizontal axis, deselect for calendar dates (will be prettified in next pylcg release).
-* less-thans: select to show observations marked by the observer as a less-than magnitude, deselect to hide them.
-* Observer code box: When you've entered an AAVSO observer code (usually your own) in this box, selecting "Highlight" will highlight each point submitted by that observer, and "Plot only" will plot only the points from that observer (subject to the Bands selections, mind you).
+* **Bands**: Choose U, B, V, R, I, Vis., or TG directly. 
+   Check 'other' to include all other bands not listed.
+   Check 'ALL' to include all bands allowed in the AAVSO database.  When you uncheck 'other' or 'ALL', the other selections are kept and used.
+* **Grid**: select to show a grid over the plot, deselect to remove.
+* **Error bars**: select to show error bars on each point, as submitted by the observer.
+* **plot in JD**: select for Julian Data on the horizontal axis, deselect for calendar dates.
+* **less-thans**: select to show observations marked by the observer as a less-than magnitude, deselect to hide them.
+* **Observer code** settings: You may enter an AAVSO observer code (usually your own) in the box.
+   When you select "Highlight", pylcg will highlight each point submitted by that observer.
+   When you select "Plot only", pylcg will plot only the points from that observer (subject to the Bands selections).
 
 **Buttons**: Each buttons at bottom right triggers an action you might find useful:
-* "Preferences..." is disabled until release 1.0.
+* "Preferences..." is disabled. 
 * "VSX" launches your browser in the VSX Search window for the current target star.
-* "List Observers" shows a pop-up box with a summary of the observers that submitted observations for the current target star in the current date range (is not limited by Bands; let me know if you think they should be).
 * "Observations" launches your browser in the WebObs window populated with the target star's observations.
+* "List Observers" shows a pop-up box with a summary of the observers that submitted observations for the current target star in the current date range (enhanced in v 1.00).
 
 **Also note**:
-* Check marks on the right of the Start, End, and Days entry boxes mean that pylcg understands what's in the box. An X mark means it doesn't understand, and a dash means the entry box appears to be empty. When the check mark is highlighted green, that means that data has been loaded and plotted using those values.
-* Plots are resizeable. Drag and drop the (say) right bottom corner of the whole window to resize the plot. You can shrink it small enough to fit easily in a laptop screen, or make it as large as you can stand (but note: the axes and data points don't grow with the screen).
+* Check marks shown on the right of the Start, End, and Days entry boxes mean that pylcg understands what's in the box. An X mark means it doesn't understand, and a dash means the entry box appears to be empty. 
+     And when the check mark is highlighted green, that means that data has been loaded and plotted using those values.
+* Plots are resizeable. Drag and drop the (say) right bottom corner of the whole window to resize the plot. 
+     You can shrink it small enough to fit easily in a laptop screen, or make it as large as you can stand.
+     This manual resizing is *not* stored in Preferences.
+     But you can use the new (v 1.00) Preferences menu item to set launch-time window size to Smaller or Larger.
 * Zoom and pan now work! Use the magnifying glass and 4-arrow buttons in the toolbar at bottom.
 * Save a plot using the disk button in the toolbar.
-* When you change settings, any zooming gets undone. This won't matter for most users most of the time, but retaining zoom/pan on settings change will require some research and considerable rewriting, so will wait until 2019.
+* When you change settings, any zooming gets undone. 
+     This won't matter for most users most of the time, 
+     but it appears to be a matplotlib limitation and is unlikely to be improved.
 
 ### Changes in release Version 1.00 (vs 0.31 Beta):
-* User can change plot window size to Larger or Smaller. 
-   Choose the size in the top menu bar; you'll have to restart pylcg for this to take effect (matplotlib limitation). 
+* User can set plot window size to Larger or Smaller. 
+   Make your choice in the top menu bar under Preferences. You'll have to restart pylcg for this to take effect (matplotlib limitation). 
    Typically, you'll use Larger if you're working on either a desktop monitor or a high-resolution laptop screen when you've turned off Win 10 "High DPI" options.
    Typically, you'll use Smaller if you're working on a standard laptop screen.
-* A new List Observers window is available new button at lower right.
-* Plots may have observations limited to those of only one observer.
+* List Observers is greatly enhanced. 
+   For each observer having submitted data in the time span, pylcg now shows the number of observations, 
+      the number of observations by band, and the days (from present) since that observer's most recent
+      observation of the currently plotted target (within the time range selected).
+   When a column header is clicked, the table is instantly sorted on that column's contents. 
+   To reverse the sort order, simply click it again.
+* Plots may have observations limited to those of only one observer (check "Plot only" when an observer code is
+   entered in the box).
 * Plots in JD with small time ranges now plot as a base JD + offset for legibility.
 * X-axis formatting in calendar-date mode is improved.
 * All option combinations at right now play nicely together in any combination.
 * Various speed enhancements. Most operations are essentially instantaneous after the data has been downloaded from AAVSO.
+* Retrieval from AAVSO's database are slightly faster from an improved access method (thanks, George and Cliff!)
 
 ### Changes in Version 0.31 (vs 0.3 Beta):
 * [made obsolete by v 1.00] Size of initial window is smaller, to accommodate Windows 10's weird rescaling of GUIs on laptops. Vertical size is now 772 pixels; I don't think I can make it smaller than this. Don't forget that you can always size the plot larger by dragging a window corner. Initial window size will be a persistent Preference (small-for-laptop vs. normal-for-desktop) in release 1.0.  
@@ -83,8 +100,12 @@ To plot all targets in a AAVSO Enhanced (CCD) or Visual Upload file (very useful
 ### Versions after 1.00:
 pylcg now does everything I wanted it to do, and I know of no bugs in it (and it's been hammered on pretty hard).
 
-I'll certainly fix bugs brought to my attention. 
-But short of that: major revisions are not expected in 2019's first half.
+I'll certainly fix meaningful bugs brought to my attention, and will publish new minor revisions if needed. 
+
+But short of that: I am making major observatory changes early 2019, 
+so I do not expect to make major revisions before 3rd quarter 2019 at the earliest.
+
+Even so...
 
 ### What might \*you\* want pylcg's future to be?
  
